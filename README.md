@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/rxme.svg)](https://www.npmjs.com/package/rxme)
 
 
-## Simqle
+## rxme
 
 [![Greenkeeper badge](https://badges.greenkeeper.io/mabels/rxme.svg)](https://greenkeeper.io/)
 
