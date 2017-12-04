@@ -1,0 +1,42 @@
+{
+  "name": "rxme",
+  "version": "1.0.0",
+  "description": "rxme queue",
+  "main": "./dist/lib/rxme.js",
+  "types": "./dist/lib/rxme.d.ts",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "tsc",
+    "lint": "tslint --project tsconfig.json",
+    "pretest": "npm run build",
+    "test": "mocha dist/test/*-test.js",
+    "prepare": "npm run lint && npm run clean && npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "mabels/rxme"
+  },
+  "license": "AFL-2.0",
+  "bugs": {
+    "url": "https://github.com/mabels/rxme/issues"
+  },
+  "hmmepage": "https://github.com/mabels/rxme#readme",
+  "devDependencies": {
+    "@types/chai": "^4.0.7",
+    "@types/mocha": "^2.2.44",
+    "chai": ">=3.5.0",
+    "cz-conventional-changelog": "^2.1.0",
+    "mocha": "^4.0.1",
+    "rimraf": "^2.6.2",
+    "tslint": "^5.8.0",
+    "typescript": "^2.6.2"
+  },
+  "dependencies": {
+    "rxjs": "^5.5.3"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}
