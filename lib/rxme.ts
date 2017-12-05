@@ -225,7 +225,7 @@ export class RxMe<T = void> {
     }
   }
 
-  public asKind<A = T>(a: any): A {
+  public asKind<A = T>(): A {
     return this.data as A;
   }
 
