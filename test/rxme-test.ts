@@ -2,92 +2,198 @@ import { assert } from 'chai';
 import * as RxMe from '../lib/rxme';
 
 class MyTest {
-  public test: number = 77;
+  public readonly test: number;
+  public readonly objectId: string;
+
+  constructor(test: number = 77) {
+    this.test = test;
+    this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
+  }
 }
 
 describe('rxme', () => {
 
-  it('passthrough', () => {
+  it('sync', () => {
+    // const x = new RxMe.Error('');
     const inp = new RxMe.Subject<Number>();
     const out = new RxMe.Subject<Number>();
     let count = 0;
-    out.subscribe(obs => {
-      if (obs.isError()) {
-          assert.equal(obs.asError()._error, 'Hello World');
-          count++;
-          // console.log(obs);
-      }
-      if (obs.isLogMsg()) {
-          assert.equal(obs.asLogMsg().level, 'hello');
-          assert.deepEqual(obs.asLogMsg().parts, ['world']);
-          count++;
-          // console.log(obs);
-      }
-      // console.log(obs, obs.asKind() instanceof Number, typeof obs.asKind(), typeof Number);
-      if (obs.isKind(MyTest)) {
-        assert.equal(obs.asKind<MyTest>().test, 77);
-        count++;
-      }
-      if (obs.isKind(RxMe.Match.NUMBER)) {
-        if (count == 0) {
-          assert.equal(obs.asKind<Number>(), 42);
-        } else {
-          assert.equal(obs.asKind<Number>(), 43);
-        }
-        count++;
-      }
+    out.passTo().matchError((obs, err) => {
+      // console.log(`[${obs.objectId}]:out:matchError`);
+      assert.equal(err._error, 'Hello World');
+      count++;
+      return false;
+      // console.log(obs);
+    }).matchComplete((obs, complete) => {
+      // console.log(`[${obs.objectId}]:out:matchCompleted`);
+      count++;
+      return false;
+    }).matchLogMsg((obs, log) => {
+      // console.log(`[${obs.objectId}]:out:matchLogMsg`);
+      assert.equal(log.level, 'hello');
+      assert.deepEqual(log.parts, ['world']);
+      count++;
+      return false;
+      // console.log(obs);
+    }).match<MyTest>(MyTest, (obs, data) => {
+      // console.log(`[${obs.objectId}]:out:match:MyTest`);
+      assert.equal(data.test, 77);
+      count++;
+      return false;
+    }).match<Number>(RxMe.Match.NUMBER, (obs, data) => {
+      // console.log(`[${obs.objectId}]:out:match:Number`);
+      assert.equal(data, 42);
+      count++;
+      return false;
     });
 
-    inp.subscribe(obs => obs.passthrough(out));
+    // console.log(`sync:`, inp.objectId, out.objectId);
+    let completed = 0;
+    inp.passTo(out)
+      .matchError((obs, err) => {
+        // console.log(`[${obs.objectId}]:inp:matchError`);
+        count++;
+        return err._error == 'Start World';
+      })
+      .matchComplete((obs, complete) => {
+        // console.log(`[${obs.objectId}]:inp:matchCompleted`);
+        count++;
+        return true;
+      })
+      .matchLogMsg((obs, log) => {
+        // console.log(`[${obs.objectId}]:inp:matchLogMsg`);
+        count++;
+        return log.level == 'start';
+      })
+      .match<MyTest>(MyTest, (obs, data) => {
+        // console.log(`[${obs.objectId}]:inp:match:MyTest`);
+        count++;
+        return data.test == 88;
+      })
+      .completed((obs, data) => {
+        return !!++completed;
+      });
+    inp.next(RxMe.error('Start World'));
+    inp.next(RxMe.logMsg('start', 'world'));
+    inp.next(RxMe.data(new MyTest(88)));
+
     inp.next(RxMe.data(42));
-    inp.next(RxMe.data(43));
+    inp.next(RxMe.data(42));
     inp.next(RxMe.data(new MyTest()));
     inp.next(RxMe.logMsg('hello', 'world'));
     inp.next(RxMe.error('Hello World'));
     inp.complete();
-    assert.equal(5, count);
+    assert.equal(9, completed, 'Total Completed');
+    assert.equal(13, count, 'Total Count');
   });
 
-  it('forward', () => {
-    const inp = new RxMe.Subject<Number>();
-    const out = new RxMe.Subject<Number>();
-    let count = 0;
-    out.subscribe(obs => {
-      if (obs.isError()) {
-          assert.equal(obs.asError()._error, 'Hello World');
-          count++;
-          return;
-      }
-      if (obs.isLogMsg()) {
-          assert.equal(obs.asLogMsg().level, 'hello');
-          assert.deepEqual(obs.asLogMsg().parts, ['world']);
-          count++;
-          return;
-      }
-      count++;
-    });
-
-    inp.subscribe(obs => {
-      if (!obs.forward(out)) {
-        if (obs.isKind(MyTest)) {
-          assert.equal(obs.asKind<MyTest>().test, 77);
-        } else {
-          if (count == 0) {
-            assert.equal(obs.asKind<Number>(), 42);
-          } else {
-            assert.equal(obs.asKind<Number>(), 43);
-          }
+  it('async', async () => {
+    return new Promise((rs, rj) => {
+      const inp = new RxMe.Subject<Number>();
+      const out = new RxMe.Subject<Number>();
+      let count = 0;
+      out.passTo().matchError((obs, err) => {
+        // console.log(`[${obs.objectId}]:matchError`);
+        try {
+          assert.equal(err._error, 'Hello World');
+        } catch (e) {
+          rj(e);
         }
+        count++;
+        setTimeout(() => obs.done(true), 1);
+        return obs;
+        // console.log(obs);
+      }).matchComplete((obs, log) => {
+        // console.log(`[${obs.objectId}]:matchLogMsg`);
+        count++;
+        setTimeout(() => obs.done(true), 1);
+        return obs;
+        // console.log(obs);
+      }).matchLogMsg((obs, log) => {
+        // console.log(`[${obs.objectId}]:matchLogMsg`);
+        try {
+          assert.equal(log.level, 'hello');
+          assert.deepEqual(log.parts, ['world']);
+        } catch (e) {
+          rj(e);
+        }
+        count++;
+        setTimeout(() => obs.done(true), 1);
+        return obs;
+        // console.log(obs);
+      }).match<MyTest>(MyTest, (obs, data) => {
+        // console.log(`[${obs.objectId}]:match:MyTest`);
+        try {
+          assert.equal(data.test, 77);
+        } catch (e) {
+          rj(e);
+        }
+        count++;
+        setTimeout(() => obs.done(true), 1);
+        return obs;
+      }).match<Number>(RxMe.Match.NUMBER, (obs, data) => {
+        // console.log(`[${obs.objectId}]:match:Number`);
+        try {
+          assert.equal(data, 42);
+        } catch (e) {
+          rj(e);
+        }
+        count++;
+        setTimeout(() => obs.done(true), 1);
+        return obs;
+      });
+      // console.log(`[${out.objectId}]:out:preNext`);
+
+      let completed = 0;
+      inp.passTo(out)
+        .matchError((obs, err) => {
+          // console.log(`[${obs.objectId}]:inp:matchError:${JSON.stringify(err)}`);
           count++;
-      }
+          setTimeout(() => obs.done(err._error == 'Start World'), 1);
+          return obs;
+        })
+        .matchComplete((obs, log) => {
+          // console.log(`[${obs.objectId}]:inp:matchLogMsg:${JSON.stringify(log)}`);
+          count++;
+          setTimeout(() => obs.done(true), 1);
+          return obs;
+        })
+        .matchLogMsg((obs, log) => {
+          // console.log(`[${obs.objectId}]:inp:matchLogMsg:${JSON.stringify(log)}`);
+          count++;
+          setTimeout(() => obs.done(log.level == 'start'), 1);
+          return obs;
+        })
+        .match<MyTest>(MyTest, (obs, data) => {
+          // console.log(`[${obs.objectId}]:inp:match<MyTest>:${JSON.stringify(data)}`);
+          count++;
+          setTimeout(() => obs.done(data.test == 88), 1);
+          return obs;
+        })
+        .completed((obs, data) => {
+          if (++completed >= 9) {
+            try {
+              assert.equal(13, count, `Total Count:${count}:${completed}`);
+              assert.equal(9, completed, 'Total Completed');
+              rs();
+            } catch (e) {
+              rj(e);
+            }
+          }
+          return !!completed;
+        });
+      // console.log(`[${inp.objectId}]:inp:preNext`);
+      inp.next(RxMe.error('Start World'));
+      inp.next(RxMe.logMsg('start', 'world'));
+      inp.next(RxMe.data(new MyTest(88)));
+
+      inp.next(RxMe.data(42));
+      inp.next(RxMe.data(42));
+      inp.next(RxMe.data(new MyTest()));
+      inp.next(RxMe.logMsg('hello', 'world'));
+      inp.next(RxMe.error('Hello World'));
+      inp.complete();
     });
-    inp.next(RxMe.data(42));
-    inp.next(RxMe.data(43));
-    inp.next(RxMe.data(new MyTest()));
-    inp.next(RxMe.logMsg('hello', 'world'));
-    inp.next(RxMe.error('Hello World'));
-    inp.complete();
-    assert.equal(5, count);
   });
 
 });
