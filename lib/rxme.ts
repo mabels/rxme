@@ -63,7 +63,7 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
   private searchMatcher(matcherIdx: number, obssIdx: number, rxme: RxMe<T>, found: boolean): void {
     // console.log(`[${this.objectId}]:enter:${!!this._done}`);
     if (matcherIdx >= this.matcher.length) {
-      this._completed.forEach(cd => cd(null, rxme.asKind(null)));
+      this._completed.forEach(cd => cd(null, rxme));
       return;
     }
     const match = this.matcher[matcherIdx];
@@ -78,11 +78,11 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
       const doneFilterSubscription = doneFilter.subscribe(obs => {
         if (obs.data instanceof Done) {
           doneFilterSubscription.unsubscribe();
-          if (isCompleted && os) {
-            os.next(rxme);
-            // console.log('matchDone', this.objectId, os.objectId, isCompleted, rxme);
-          }
-          this.searchMatcher(matcherIdx, obssIdx + 1, rxme, found || obs.data.result || isCompleted);
+          // if (isCompleted && os) {
+          //   os.next(rxme);
+          //   // console.log('matchDone', this.objectId, os.objectId, isCompleted, rxme);
+          // }
+          this.searchMatcher(matcherIdx, obssIdx + 1, rxme, (found || obs.data.result) && !isCompleted);
         } else {
           if (os) {
             os.next(obs);
@@ -90,7 +90,7 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
         }
       });
       // console.log(`[${this.objectId}]:preMatch:cb:${!!this._done}`);
-      const o = match.cb(doneFilter, rxme.asKind(match.type));
+      const o = match.cb(doneFilter, rxme.asKindAny(match.type));
       if (!(o instanceof Subject)) {
         doneFilter.done(o);
       }
@@ -224,7 +224,12 @@ export class RxMe<T = void> {
       return typeof (this.data) == a;
     }
   }
-  public asKind<A = T>(a: any): A | RxMe<T> {
+
+  public asKind<A = T>(a: any): A {
+    return this.data as A;
+  }
+
+  public asKindAny<A = T>(a: any): any {
     if (!a) {
       return this;
     }
