@@ -1,7 +1,6 @@
 import { assert } from 'chai';
 import * as RxMe from '../lib/rxme';
-import { LogMsg, LogLevel } from '../lib/log-msg';
-import { Logger } from '../lib/rxme';
+import { LogLevel } from '../lib/log-msg';
 
 class MyTest {
   public readonly test: number;
