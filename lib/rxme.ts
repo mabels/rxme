@@ -36,9 +36,9 @@ export class Complete {
 
 export class MatcherMixin<T> {
   public readonly objectId: string;
-  private readonly obss: Subject<any>[];
-  private readonly matcher: Matcher<any>[];
-  private readonly _completed: MatcherCallback<any>[];
+  public readonly obss: Subject<any>[];
+  public readonly matcher: Matcher<any>[];
+  public readonly _completed: MatcherCallback<any>[];
   public readonly type: any; // class match
   private subscription: rx.Subscription;
 
@@ -57,46 +57,6 @@ export class MatcherMixin<T> {
     this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
   }
 
-  private searchMatcher(matcherIdx: number, obssIdx: number, rxme: RxMe<T>, found: boolean): void {
-    // console.log(`[${this.objectId}]:enter:${!!this._done}`);
-    if (matcherIdx >= this.matcher.length) {
-      this._completed.forEach(cd => cd(null, rxme));
-      return;
-    }
-    const match = this.matcher[matcherIdx];
-    if (rxme.isKind(match.type)) {
-      if (obssIdx >= this.obss.length || (found && obssIdx == this.obss.length - 1)) {
-        this.searchMatcher(matcherIdx + 1, 0, rxme, found);
-        return;
-      }
-      const os = this.obss[obssIdx];
-      const doneFilter = new Subject<T>(this.type);
-      const isCompleted = rxme.isKind(Complete);
-      const doneFilterSubscription = doneFilter.subscribe(obs => {
-        if (obs.data instanceof Done) {
-          doneFilterSubscription.unsubscribe();
-          // if (isCompleted && os) {
-          //   os.next(rxme);
-          //   // console.log('matchDone', this.objectId, os.objectId, isCompleted, rxme);
-          // }
-          this.searchMatcher(matcherIdx, obssIdx + 1, rxme, (found || obs.data.result) && !isCompleted);
-        } else {
-          if (os) {
-            os.next(obs);
-          }
-        }
-      });
-      // console.log(`[${this.objectId}]:preMatch:cb:${!!this._done}`);
-      const o = match.cb(doneFilter, rxme.asKindAny(match.type));
-      if (!(o instanceof Subject)) {
-        doneFilter.done(o);
-      }
-    } else {
-      this.searchMatcher(matcherIdx + 1, 0, rxme, found);
-    }
-    // console.log(`[${this.objectId}]:leave:${!!this._done}`);
-  }
-
   public passTo<A = T>(sbj: Subject<T>, obs: Subject<A> | Subject<A>[] = null): void {
     let obss: Subject<A>[];
     if (obs instanceof Array) {
@@ -113,11 +73,11 @@ export class MatcherMixin<T> {
       // console.log(`[${this.objectId}]:passTo:[${this.subscription}]`);
       this.subscription = sbj.subscribe(myobs => {
         // console.log(`[${this.objectId}]:Matcher:${JSON.stringify(myobs)}`);
-        this.searchMatcher(0, 0, myobs, false);
+        searchMatcher(this, 0, 0, myobs, false);
       }, (err) => {
-        this.searchMatcher(0, 0, error(err), false);
+        searchMatcher(this, 0, 0, error(err), false);
       }, () => {
-        this.searchMatcher(0, 0, complete(), false);
+        searchMatcher(this, 0, 0, complete(), false);
       });
     }
   }
@@ -274,6 +234,48 @@ export class RxMe<T = void> {
     }
     return this.data as A;
   }
+}
+
+// the lint has some problems with forward declarations
+function searchMatcher<T>(mymm: MatcherMixin<T>, matcherIdx: number,
+  obssIdx: number, rxme: RxMe<T>, found: boolean): void {
+  // console.log(`[${this.objectId}]:enter:${!!this._done}`);
+  if (matcherIdx >= mymm.matcher.length) {
+    mymm._completed.forEach(cd => cd(null, rxme));
+    return;
+  }
+  const match = mymm.matcher[matcherIdx];
+  if (rxme.isKind(match.type)) {
+    if (obssIdx >= mymm.obss.length || (found && obssIdx == mymm.obss.length - 1)) {
+      searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);
+      return;
+    }
+    const os = mymm.obss[obssIdx];
+    const doneFilter = new Subject<T>(mymm.type);
+    const isCompleted = rxme.isKind(Complete);
+    const doneFilterSubscription = doneFilter.subscribe(obs => {
+      if (obs.data instanceof Done) {
+        doneFilterSubscription.unsubscribe();
+        // if (isCompleted && os) {
+        //   os.next(rxme);
+        //   // console.log('matchDone', this.objectId, os.objectId, isCompleted, rxme);
+        // }
+        searchMatcher(mymm, matcherIdx, obssIdx + 1, rxme, (found || obs.data.result) && !isCompleted);
+      } else {
+        if (os) {
+          os.next(obs);
+        }
+      }
+    });
+    // console.log(`[${this.objectId}]:preMatch:cb:${!!this._done}`);
+    const o = match.cb(doneFilter, rxme.asKindAny(match.type));
+    if (!(o instanceof Subject)) {
+      doneFilter.done(o);
+    }
+  } else {
+    searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);
+  }
+  // console.log(`[${this.objectId}]:leave:${!!this._done}`);
 }
 
 export function data<T>(t: T): RxMe {
