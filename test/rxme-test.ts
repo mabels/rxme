@@ -16,12 +16,12 @@ describe('rxme', () => {
   it('test-observable', () => {
     const inp = new RxMe.Subject<Number>(RxMe.Match.NUMBER);
     let icount = 0;
+    let count = 0;
     inp.passTo().match((_: any, nr: number) => {
       icount++;
       assert.equal(count, nr);
       return false;
     });
-    let count = 0;
     const rxo = RxMe.Observable.create(RxMe.Match.NUMBER, (obs: RxMe.Observer<Number>) => {
       obs.next(RxMe.data(++count));
       obs.next(RxMe.data(++count));
