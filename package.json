@@ -1,6 +1,6 @@
 {
   "name": "rxme",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "rxme queue",
   "main": "./dist/lib/rxme.js",
   "types": "./dist/lib/rxme.d.ts",

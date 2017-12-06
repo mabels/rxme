@@ -13,6 +13,16 @@ class MyTest {
 
 describe('rxme', () => {
 
+  it('test-subject-obeserver', () => {
+    const subject = new RxMe.Subject(null);
+    let count = 0;
+    RxMe.Observable.create(null, (obs: RxMe.Observer) => {
+      count++;
+      subject.passTo(obs);
+    }).passTo(subject);
+    assert.equal(count, 1);
+  });
+
   it('test-observable', () => {
     const inp = new RxMe.Subject<Number>(RxMe.Match.NUMBER);
     let icount = 0;

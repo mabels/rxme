@@ -36,7 +36,7 @@ export class Complete {
 
 export class MatcherMixin<T> {
   public readonly objectId: string;
-  public readonly obss: Subject<any>[];
+  public readonly obss: Observer<any>[];
   public readonly matcher: Matcher<any>[];
   public readonly _completed: MatcherCallback<any>[];
   public readonly type: any; // class match
@@ -57,8 +57,8 @@ export class MatcherMixin<T> {
     this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
   }
 
-  public passTo<A = T>(sbj: Subject<T>, obs: Subject<A> | Subject<A>[] = null): void {
-    let obss: Subject<A>[];
+  public passTo<A = T>(sbj: Subject<T>, obs: Observer<A> | Observer<A>[] = null): void {
+    let obss: Observer<A>[];
     if (obs instanceof Array) {
       obss = obs;
     } else {
@@ -116,7 +116,7 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
     return this;
   }
 
-  public passTo<A = T>(obs: Subject<A> | Subject<A>[] = null): Subject<T> {
+  public passTo<A = T>(obs: Observer<A> | Observer<A>[] = null): Subject<T> {
     this.mixin.passTo(this, obs);
     return this;
   }
@@ -219,7 +219,7 @@ export class Observable<T = void> {
     return this;
   }
 
-  public passTo(pobs: Subject<T> | Subject<T>[] = null): Observable<T> {
+  public passTo(pobs: Observer<T> | Observer<T>[] = null): Observable<T> {
     this.subject.passTo(pobs);
     this.observerCb(this.subject);
     // this.subscribe(obs => {
