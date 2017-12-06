@@ -13,6 +13,32 @@ class MyTest {
 
 describe('rxme', () => {
 
+  it('test-observable', () => {
+    const inp = new RxMe.Subject<Number>(RxMe.Match.NUMBER);
+    let icount = 0;
+    inp.passTo().match((_: any, nr: number) => {
+      icount++;
+      assert.equal(count, nr);
+      return false;
+    });
+    let count = 0;
+    const rxo = RxMe.Observable.create(RxMe.Match.NUMBER, (obs: RxMe.Observer<Number>) => {
+      obs.next(RxMe.data(++count));
+      obs.next(RxMe.data(++count));
+    });
+    assert.equal(count, 0);
+    let ocount = 0;
+    rxo.match((_: any, nr: number) => {
+      ocount++;
+      assert.equal(count, nr);
+      return false;
+    }).passTo(inp);
+    // console.log(`>>>${count}:${icount}:${ocount}`);
+    assert.equal(icount, 2, 'icount');
+    assert.equal(count, 2, 'count');
+    assert.equal(ocount, 2, 'ocount');
+  });
+
   it('sync', () => {
     // const x = new RxMe.Error('');
     const inp = new RxMe.Subject<Number>(RxMe.Match.NUMBER);

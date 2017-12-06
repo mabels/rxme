@@ -82,7 +82,7 @@ export class MatcherMixin<T> {
     }
   }
 
-  public match<A = T>(typ: any, cb: MatcherCallback<A>): void {
+  public matchType<A = T>(typ: any, cb: MatcherCallback<A>): void {
     this.matcher.push(new Matcher(typ, cb));
     // this make the wildcard the last in match chain
     const swap = this.matcher[this.matcher.length - 1];
@@ -122,37 +122,37 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
   }
 
   public match(cb: MatcherCallback<T>): Subject<T> {
-    this.mixin.match(this.mixin.type, cb);
+    this.mixin.matchType(this.mixin.type, cb);
     return this;
   }
 
   public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Subject<T> {
-    this.mixin.match(typ, cb);
+    this.mixin.matchType(typ, cb);
     return this;
   }
 
   public matchError(cb: MatcherCallback<Error>): Subject<T> {
-    this.mixin.match(Error, cb);
+    this.mixin.matchType(Error, cb);
     return this;
   }
 
   public matchLogMsg(cb: MatcherCallback<LogMsg>): Subject<T> {
-    this.mixin.match(LogMsg, cb);
+    this.mixin.matchType(LogMsg, cb);
     return this;
   }
 
   public matchDone(cb: MatcherCallback<Done>): Subject<T> {
-    this.mixin.match(Done, cb);
+    this.mixin.matchType(Done, cb);
     return this;
   }
 
   public matchComplete(cb: MatcherCallback<Complete>): Subject<T> {
-    this.mixin.match(Complete, cb);
+    this.mixin.matchType(Complete, cb);
     return this;
   }
 
   public wildCard(cb: MatcherCallback<any>): Subject<T> {
-    this.mixin.match(null, cb);
+    this.mixin.matchType(null, cb);
     return this;
   }
 
@@ -161,15 +161,72 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
 export interface Observer<T = void> extends rx.Observer<RxMe<T>> {
 }
 
-export class Observable<T = void> extends rx.Observable<RxMe<T>> {
+export interface ObserverCb<T> {
+  (_: Observer<T>): any;
+}
 
-  // public passTo(pobs: Subject<T> | Subject<T>[] = null): Subject<T> {
-  //   const ret = new Subject<T>().passTo(pobs);
-  //   this.subscribe(obs => {
-  //     ret.next(obs);
-  //   });
-  //   return ret;
-  // }
+export class Observable<T = void> {
+  private readonly observerCb: ObserverCb<T>;
+  private subject: Subject<T>;
+
+  public static create<T>(typ: any, obsCb: ObserverCb<T>): Observable<T> {
+    const ret = new Observable<T>(typ, obsCb);
+    return ret;
+  }
+
+  constructor(typ: any, obsCb: ObserverCb<T>) {
+    this.observerCb = obsCb;
+    this.subject = new Subject<T>(typ);
+  }
+
+  public match(cb: MatcherCallback<T>): Observable<T> {
+    this.subject.match(cb);
+    return this;
+  }
+
+  public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Observable<T> {
+    this.subject.matchType(typ, cb);
+    return this;
+  }
+
+  public matchError(cb: MatcherCallback<Error>): Observable<T> {
+    this.subject.matchType(Error, cb);
+    return this;
+  }
+
+  public matchLogMsg(cb: MatcherCallback<LogMsg>): Observable<T> {
+    this.subject.matchType(LogMsg, cb);
+    return this;
+  }
+
+  public matchDone(cb: MatcherCallback<Done>): Observable<T> {
+    this.subject.matchType(Done, cb);
+    return this;
+  }
+
+  public matchComplete(cb: MatcherCallback<Complete>): Observable<T> {
+    this.subject.matchType(Complete, cb);
+    return this;
+  }
+
+  public wildCard(cb: MatcherCallback<any>): Observable<T> {
+    this.subject.matchType(null, cb);
+    return this;
+  }
+
+  public completed(cb: MatcherCallback<T>): Observable<T> {
+    this.subject.completed(cb);
+    return this;
+  }
+
+  public passTo(pobs: Subject<T> | Subject<T>[] = null): Observable<T> {
+    this.subject.passTo(pobs);
+    this.observerCb(this.subject);
+    // this.subscribe(obs => {
+    //   ret.next(obs);
+    // });
+    return this;
+  }
 
 }
 
