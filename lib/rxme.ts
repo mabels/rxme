@@ -3,8 +3,8 @@ import * as rx from 'rxjs';
 import Error from './error';
 export { Error } from './error';
 
-import LogMsg from './log-msg';
-export { LogMsg } from './log-msg';
+import LogMsg, { LogLevel } from './log-msg';
+export { LogLevel } from './log-msg';
 
 export enum Match {
   NUMBER = 'number'
@@ -97,13 +97,40 @@ export class MatcherMixin<T> {
 
 }
 
+export class Logger<T> {
+  private readonly out: Observer<T>;
+
+  constructor(out: Observer<T>) {
+    this.out = out;
+  }
+
+  public info(...arg: any[]): void {
+    this.out.next(logMsg(LogLevel.INFO, arg));
+  }
+
+  public warn(...arg: any[]): void {
+    this.out.next(logMsg(LogLevel.WARN, arg));
+  }
+
+  public debug(...arg: any[]): void {
+    this.out.next(logMsg(LogLevel.DEBUG, arg));
+  }
+
+  public error(...arg: any[]): void {
+    this.out.next(logMsg(LogLevel.ERROR, arg));
+  }
+
+}
+
 export class Subject<T = void> extends rx.Subject<RxMe<T>> {
   private readonly mixin: MatcherMixin<T>;
+  public nextLog: Logger<T>;
 
   constructor(a: any) {
     // const a = new T();
     super();
     this.mixin = new MatcherMixin<T>(a);
+    this.nextLog = new Logger(this);
   }
 
   public completed(cb: MatcherCallback<any>): Subject<T> {
@@ -339,7 +366,7 @@ export function data<T>(t: T): RxMe {
   return new RxMe(t);
 }
 
-export function logMsg(level: string, ...parts: any[]): RxMe {
+export function logMsg(level: LogLevel, ...parts: any[]): RxMe {
   return data(new LogMsg(level, parts));
 }
 

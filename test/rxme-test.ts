@@ -1,5 +1,7 @@
 import { assert } from 'chai';
 import * as RxMe from '../lib/rxme';
+import { LogMsg, LogLevel } from '../lib/log-msg';
+import { Logger } from '../lib/rxme';
 
 class MyTest {
   public readonly test: number;
@@ -12,6 +14,22 @@ class MyTest {
 }
 
 describe('rxme', () => {
+
+  it('logMsg', () => {
+    const subject = new RxMe.Subject(null);
+    const match = ['debug', 'info', 'error', 'warn'];
+    let idx = 0;
+    subject.matchLogMsg((_, lm) => {
+      assert.equal(lm.level, match[idx]);
+      assert.deepEqual(lm.parts, [match[idx]]);
+      idx++;
+      return true;
+    });
+    subject.nextLog.info('info');
+    subject.nextLog.warn('warn');
+    subject.nextLog.error('error');
+    subject.nextLog.warn('warn');
+  });
 
   it('test-subject-obeserver', () => {
     const subject = new RxMe.Subject(null);
@@ -71,7 +89,7 @@ describe('rxme', () => {
       return false;
     }).matchLogMsg((obs, log) => {
       // console.log(`[${obs.objectId}]:out:matchLogMsg`);
-      assert.equal(log.level, 'hello');
+      assert.equal(log.level, LogLevel.INFO);
       assert.deepEqual(log.parts, ['world']);
       count++;
       return false;
@@ -104,7 +122,7 @@ describe('rxme', () => {
       .matchLogMsg((obs, log) => {
         // console.log(`[${obs.objectId}]:inp:matchLogMsg`);
         count++;
-        return log.level == 'start';
+        return log.level == LogLevel.WARN;
       })
       .matchType<MyTest>(MyTest, (obs, data) => {
         // console.log(`[${obs.objectId}]:inp:match:MyTest`);
@@ -115,13 +133,13 @@ describe('rxme', () => {
         return !!++completed;
       });
     inp.next(RxMe.error('Start World'));
-    inp.next(RxMe.logMsg('start', 'world'));
+    inp.next(RxMe.logMsg(LogLevel.WARN, 'world'));
     inp.next(RxMe.data(new MyTest(88)));
 
     inp.next(RxMe.data(42));
     inp.next(RxMe.data(42));
     inp.next(RxMe.data(new MyTest()));
-    inp.next(RxMe.logMsg('hello', 'world'));
+    inp.next(RxMe.logMsg(LogLevel.INFO, 'world'));
     inp.next(RxMe.error('Hello World'));
     inp.complete();
     assert.equal(9, completed, 'Total Completed');
@@ -162,7 +180,7 @@ describe('rxme', () => {
         }).matchLogMsg((obs, log) => {
           // console.log(`[${obs.objectId}]:matchLogMsg`);
           try {
-            assert.equal(log.level, 'hello');
+            assert.equal(log.level, LogLevel.DEBUG);
             assert.deepEqual(log.parts, ['world']);
           } catch (e) {
             rj(e);
@@ -225,7 +243,7 @@ describe('rxme', () => {
           .matchLogMsg((obs, log) => {
             // console.log(`[${obs.objectId}]:inp:matchLogMsg:${JSON.stringify(log)}`);
             icount++;
-            setTimeout(() => obs.done(log.level == 'start'), 1);
+            setTimeout(() => obs.done(log.level == LogLevel.INFO), 1);
             return obs;
           })
           .matchType<MyTest>(MyTest, (obs, data) => {
@@ -248,13 +266,13 @@ describe('rxme', () => {
           });
         // console.log(`[${inp.objectId}]:inp:preNext`);
         inp.next(RxMe.error('Start World'));
-        inp.next(RxMe.logMsg('start', 'world'));
+        inp.next(RxMe.logMsg(LogLevel.INFO, 'world'));
         inp.next(RxMe.data(new MyTest(88)));
 
         inp.next(RxMe.data(42));
         inp.next(RxMe.data(42));
         inp.next(RxMe.data(new MyTest()));
-        inp.next(RxMe.logMsg('hello', 'world'));
+        inp.next(RxMe.logMsg(LogLevel.DEBUG, 'world'));
         inp.next(RxMe.error('Hello World'));
         inp.complete();
       })]);
