@@ -15,8 +15,8 @@ describe('rxme', () => {
 
   it('sync', () => {
     // const x = new RxMe.Error('');
-    const inp = new RxMe.Subject<Number>();
-    const out = new RxMe.Subject<Number>();
+    const inp = new RxMe.Subject<Number>(RxMe.Match.NUMBER);
+    const out = new RxMe.Subject<Number>(RxMe.Match.NUMBER);
     let count = 0;
     let wcount = 0;
     out.passTo().wildCard((obs, any) => {
@@ -40,12 +40,12 @@ describe('rxme', () => {
       count++;
       return false;
       // console.log(obs);
-    }).match<MyTest>(MyTest, (obs, data) => {
+    }).matchType<MyTest>(MyTest, (obs, data) => {
       // console.log(`[${obs.objectId}]:out:match:MyTest`);
       assert.equal(data.test, 77);
       count++;
       return false;
-    }).match<Number>(RxMe.Match.NUMBER, (obs, data) => {
+    }).matchType(RxMe.Match.NUMBER, (obs, data) => {
       // console.log(`[${obs.objectId}]:out:match:Number`);
       assert.equal(data, 42);
       count++;
@@ -70,7 +70,7 @@ describe('rxme', () => {
         count++;
         return log.level == 'start';
       })
-      .match<MyTest>(MyTest, (obs, data) => {
+      .matchType<MyTest>(MyTest, (obs, data) => {
         // console.log(`[${obs.objectId}]:inp:match:MyTest`);
         count++;
         return data.test == 88;
@@ -94,8 +94,8 @@ describe('rxme', () => {
   });
 
   it('async', async () => {
-    const inp = new RxMe.Subject<Number>();
-    const out = new RxMe.Subject<Number>();
+    const inp = new RxMe.Subject<MyTest>(MyTest);
+    const out = new RxMe.Subject<MyTest>(MyTest);
     return Promise.all([
       new Promise((rs, rj) => {
         let completed = 0;
@@ -135,7 +135,7 @@ describe('rxme', () => {
           setTimeout(() => obs.done(true), 1);
           return obs;
           // console.log(obs);
-        }).match<MyTest>(MyTest, (obs, data) => {
+        }).match((obs, data) => {
           // console.log(`[${obs.objectId}]:match:MyTest`);
           try {
             assert.equal(data.test, 77);
@@ -145,7 +145,7 @@ describe('rxme', () => {
           ocount++;
           setTimeout(() => obs.done(true), 1);
           return obs;
-        }).match<Number>(RxMe.Match.NUMBER, (obs, data) => {
+        }).matchType<number>(RxMe.Match.NUMBER, (obs, data) => {
           // console.log(`[${obs.objectId}]:match:Number`);
           try {
             assert.equal(data, 42);
@@ -192,7 +192,7 @@ describe('rxme', () => {
             setTimeout(() => obs.done(log.level == 'start'), 1);
             return obs;
           })
-          .match<MyTest>(MyTest, (obs, data) => {
+          .matchType<MyTest>(MyTest, (obs, data) => {
             // console.log(`[${obs.objectId}]:inp:match<MyTest>:${JSON.stringify(data)}`);
             icount++;
             setTimeout(() => obs.done(data.test == 88), 1);

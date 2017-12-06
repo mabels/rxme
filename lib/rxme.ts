@@ -34,17 +34,19 @@ export class Done {
 export class Complete {
 }
 
-export class Subject<T = void> extends rx.Subject<RxMe<T>> {
+export class MatcherMixin<T> {
   public readonly objectId: string;
   private readonly obss: Subject<any>[];
   private readonly matcher: Matcher<any>[];
   private readonly _completed: MatcherCallback<any>[];
+  public readonly type: any; // class match
   private subscription: rx.Subscription;
 
-  constructor() {
-    super();
+  constructor(a: T | Match) {
+    this.type = a;
     this.obss = [];
     this.matcher = [
+      // wildcard
       new Matcher(null, (obs, _data) => {
         // console.log(`[${this.objectId}]:[${obs.objectId}]:wildcard:${JSON.stringify(_data)}`);
         obs.next(_data);
@@ -53,11 +55,6 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
     ];
     this._completed = [];
     this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
-  }
-
-  public done(result: boolean): Subject<T> {
-    this.next(done(result));
-    return this;
   }
 
   private searchMatcher(matcherIdx: number, obssIdx: number, rxme: RxMe<T>, found: boolean): void {
@@ -73,7 +70,7 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
         return;
       }
       const os = this.obss[obssIdx];
-      const doneFilter = new Subject<T>();
+      const doneFilter = new Subject<T>(this.type);
       const isCompleted = rxme.isKind(Complete);
       const doneFilterSubscription = doneFilter.subscribe(obs => {
         if (obs.data instanceof Done) {
@@ -100,7 +97,7 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
     // console.log(`[${this.objectId}]:leave:${!!this._done}`);
   }
 
-  public passTo<A = T>(obs: Subject<A> | Subject<A>[] = null): Subject<T> {
+  public passTo<A = T>(sbj: Subject<T>, obs: Subject<A> | Subject<A>[] = null): void {
     let obss: Subject<A>[];
     if (obs instanceof Array) {
       obss = obs;
@@ -114,7 +111,7 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
     // console.log(`[${obss}]:[${this.obss}]`);
     if (!this.subscription) {
       // console.log(`[${this.objectId}]:passTo:[${this.subscription}]`);
-      this.subscription = this.subscribe(myobs => {
+      this.subscription = sbj.subscribe(myobs => {
         // console.log(`[${this.objectId}]:Matcher:${JSON.stringify(myobs)}`);
         this.searchMatcher(0, 0, myobs, false);
       }, (err) => {
@@ -123,46 +120,79 @@ export class Subject<T = void> extends rx.Subject<RxMe<T>> {
         this.searchMatcher(0, 0, complete(), false);
       });
     }
-    return this;
   }
 
-  public completed(cb: MatcherCallback<any>): Subject<T> {
-    this._completed.push(cb);
-    return this;
-  }
-
-  public wildCard(cb: MatcherCallback<any>): Subject<T> {
-    this.match(null, cb);
-    return this;
-  }
-
-  public match<A = T>(typ: any, cb: MatcherCallback<A>): Subject<T> {
+  public match<A = T>(typ: any, cb: MatcherCallback<A>): void {
     this.matcher.push(new Matcher(typ, cb));
     // this make the wildcard the last in match chain
     const swap = this.matcher[this.matcher.length - 1];
     this.matcher[this.matcher.length - 1] = this.matcher[this.matcher.length - 2];
     this.matcher[this.matcher.length - 2] = swap;
     // console.log('Match:push:', this.matcher.length);
+  }
+
+  public completed(cb: MatcherCallback<any>): void {
+    this._completed.push(cb);
+  }
+
+}
+
+export class Subject<T = void> extends rx.Subject<RxMe<T>> {
+  private readonly mixin: MatcherMixin<T>;
+
+  constructor(a: any) {
+    // const a = new T();
+    super();
+    this.mixin = new MatcherMixin<T>(a);
+  }
+
+  public completed(cb: MatcherCallback<any>): Subject<T> {
+    this.mixin.completed(cb);
+    return this;
+  }
+
+  public done(result: boolean): Subject<T> {
+    this.next(done(result));
+    return this;
+  }
+
+  public passTo<A = T>(obs: Subject<A> | Subject<A>[] = null): Subject<T> {
+    this.mixin.passTo(this, obs);
+    return this;
+  }
+
+  public match(cb: MatcherCallback<T>): Subject<T> {
+    this.mixin.match(this.mixin.type, cb);
+    return this;
+  }
+
+  public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Subject<T> {
+    this.mixin.match(typ, cb);
     return this;
   }
 
   public matchError(cb: MatcherCallback<Error>): Subject<T> {
-    this.match(Error, cb);
+    this.mixin.match(Error, cb);
     return this;
   }
 
   public matchLogMsg(cb: MatcherCallback<LogMsg>): Subject<T> {
-    this.match(LogMsg, cb);
+    this.mixin.match(LogMsg, cb);
     return this;
   }
 
   public matchDone(cb: MatcherCallback<Done>): Subject<T> {
-    this.match(Done, cb);
+    this.mixin.match(Done, cb);
     return this;
   }
 
   public matchComplete(cb: MatcherCallback<Complete>): Subject<T> {
-    this.match(Complete, cb);
+    this.mixin.match(Complete, cb);
+    return this;
+  }
+
+  public wildCard(cb: MatcherCallback<any>): Subject<T> {
+    this.mixin.match(null, cb);
     return this;
   }
 
@@ -172,6 +202,15 @@ export interface Observer<T = void> extends rx.Observer<RxMe<T>> {
 }
 
 export class Observable<T = void> extends rx.Observable<RxMe<T>> {
+
+  // public passTo(pobs: Subject<T> | Subject<T>[] = null): Subject<T> {
+  //   const ret = new Subject<T>().passTo(pobs);
+  //   this.subscribe(obs => {
+  //     ret.next(obs);
+  //   });
+  //   return ret;
+  // }
+
 }
 
 export class RxMe<T = void> {
