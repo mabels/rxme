@@ -1,6 +1,6 @@
 {
   "name": "rxme",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "rxme queue",
   "main": "./dist/lib/rxme.js",
   "types": "./dist/lib/rxme.d.ts",
@@ -22,7 +22,7 @@
   },
   "hmmepage": "https://github.com/mabels/rxme#readme",
   "devDependencies": {
-    "@types/chai": "^4.0.7",
+    "@types/chai": "^4.0.10",
     "@types/mocha": "^2.2.44",
     "chai": ">=3.5.0",
     "cz-conventional-changelog": "^2.1.0",
@@ -32,7 +32,7 @@
     "typescript": "^2.6.2"
   },
   "dependencies": {
-    "rxjs": "^5.5.3"
+    "rxjs": "^5.5.5"
   },
   "config": {
     "commitizen": {

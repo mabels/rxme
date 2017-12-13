@@ -3,11 +3,14 @@ import * as rx from 'rxjs';
 import Error from './error';
 export { Error } from './error';
 
-import LogMsg, { LogLevel } from './log-msg';
-export { LogLevel } from './log-msg';
+export { LogMsg, LogLevel } from './log-msg';
+import { LogMsg, LogLevel } from './log-msg';
 
 export enum Match {
-  NUMBER = 'number'
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  STRING = 'string',
+  OBJECT = 'object'
 }
 
 export interface MatcherCallback<T> {
