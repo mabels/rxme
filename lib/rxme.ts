@@ -1,70 +1,72 @@
 import * as rx from 'rxjs';
 
-import Error from './error';
-export { Error } from './error';
+// import Error from './error';
+// export { Error } from './error';
 
-export { LogMsg, LogLevel } from './log-msg';
-import { LogMsg, LogLevel } from './log-msg';
+// export { LogEntry, LogLevel } from './log-msg';
+// import { LogEntry, LogLevel } from './log-msg';
 
-export enum Match {
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  STRING = 'string',
-  OBJECT = 'object'
-}
+// export { Matcher } from './matcher';
+// export { Data } from './data';
+import Msg from './msg';
+import { Matcher, MatcherCallback } from './matcher';
+import { CompleteMsg } from './messages';
 
-export interface MatcherCallback<T> {
-  (obs: Subject<any>, data: T): boolean | Subject<any>;
-}
+// export enum Match {
+//   NUMBER = 'number',
+//   BOOLEAN = 'boolean',
+//   STRING = 'string',
+//   OBJECT = 'object'
+// }
 
-export class Matcher<T> {
-  public readonly type: any;
-  public readonly cb: MatcherCallback<T>;
+// export class Matcher<T> {
+//   public readonly type: any;
+//   public readonly cb: MatcherCallback<T>;
 
-  constructor(type: any, cb: MatcherCallback<T>) {
-    this.type = type;
-    this.cb = cb;
-  }
-}
+//   constructor(type: any, cb: MatcherCallback<T>) {
+//     this.type = type;
+//     this.cb = cb;
+//   }
+// }
 
-export class Done {
-  public readonly result: boolean;
-  constructor(result: boolean) {
-    this.result = result;
-  }
-}
+// export class Done {
+//   public readonly result: boolean;
+//   constructor(result: boolean) {
+//     this.result = result;
+//   }
+// }
 
-export class Complete {
-}
+// export class Complete {
+// }
 
-export class MatcherMixin<T> {
+export class MatcherMixin {
   public readonly objectId: string;
-  public readonly obss: Observer<any>[];
-  public readonly matcher: Matcher<any>[];
-  public readonly _completed: MatcherCallback<any>[];
-  public readonly type: any; // class match
+  public readonly obss: Observer[];
+  public readonly matcher: MatcherCallback[];
+  public readonly _completed: MatcherCallback[];
+  // public readonly type: any; // class match
   private subscription: rx.Subscription;
 
-  constructor(a: T | Match) {
-    this.type = a;
+  constructor() {
+    // this.type = a;
     this.obss = [];
     this.matcher = [
       // wildcard
-      new Matcher(null, (obs, _data) => {
-        // console.log(`[${this.objectId}]:[${obs.objectId}]:wildcard:${JSON.stringify(_data)}`);
-        obs.next(_data);
-        return true;
-      })
+      // Matcher.WildCard((data, sub) => {
+      //   // console.log(`[${this.objectId}]:[${obs.objectId}]:wildcard:${JSON.stringify(_data)}`);
+      //   sub.next(data);
+      //   return true;
+      // })
     ];
     this._completed = [];
     this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
   }
 
-  public passTo<A = T>(sbj: Subject<T>, obs: Observer<A> | Observer<A>[] = null): void {
-    let obss: Observer<A>[];
+  public passTo(sbj: Subject, obs: Observer | Observer[] = null): void {
+    let obss: Observer[] = [];
     if (obs instanceof Array) {
       obss = obs;
-    } else {
+    } else if (obs) {
       obss = [obs];
     }
     // if (!!obss.find(o => !o)) {
@@ -76,180 +78,158 @@ export class MatcherMixin<T> {
       // console.log(`[${this.objectId}]:passTo:[${this.subscription}]`);
       this.subscription = sbj.subscribe(myobs => {
         // console.log(`[${this.objectId}]:Matcher:${JSON.stringify(myobs)}`);
-        searchMatcher(this, 0, 0, myobs, false);
+        searchMatcher(this, 0, myobs, false);
       }, (err) => {
-        searchMatcher(this, 0, 0, error(err), false);
+        console.log('passTo:Error', err);
+        searchMatcher(this, 0, Msg.Error(err), false);
       }, () => {
-        searchMatcher(this, 0, 0, complete(), false);
+        console.log('passTo:Completed');
+        searchMatcher(this, 0, Msg.Complete(), false);
       });
     }
   }
 
-  public matchType<A = T>(typ: any, cb: MatcherCallback<A>): void {
-    this.matcher.push(new Matcher(typ, cb));
+  public match(cb: MatcherCallback): void {
+    this.matcher.push(cb);
+    // console.log('Match:', this.objectId, this.matcher.length);
     // this make the wildcard the last in match chain
-    const swap = this.matcher[this.matcher.length - 1];
-    this.matcher[this.matcher.length - 1] = this.matcher[this.matcher.length - 2];
-    this.matcher[this.matcher.length - 2] = swap;
+    // const swap = this.matcher[this.matcher.length - 1];
+    // this.matcher[this.matcher.length - 1] = this.matcher[this.matcher.length - 2];
+    // this.matcher[this.matcher.length - 2] = swap;
     // console.log('Match:push:', this.matcher.length);
   }
 
-  public completed(cb: MatcherCallback<any>): void {
+  public completed(cb: MatcherCallback): void {
     this._completed.push(cb);
   }
 
 }
 
-export class Logger<T> {
-  private readonly out: Observer<T>;
+export class Subject extends rx.Subject<RxMe> {
+  private readonly mixin: MatcherMixin;
+  // public nextLog: Logger<T>;
 
-  constructor(out: Observer<T>) {
-    this.out = out;
-  }
-
-  public info(...arg: any[]): void {
-    this.out.next(logMsg(LogLevel.INFO, arg));
-  }
-
-  public warn(...arg: any[]): void {
-    this.out.next(logMsg(LogLevel.WARN, arg));
-  }
-
-  public debug(...arg: any[]): void {
-    this.out.next(logMsg(LogLevel.DEBUG, arg));
-  }
-
-  public error(...arg: any[]): void {
-    this.out.next(logMsg(LogLevel.ERROR, arg));
-  }
-
-}
-
-export class Subject<T = void> extends rx.Subject<RxMe<T>> {
-  private readonly mixin: MatcherMixin<T>;
-  public nextLog: Logger<T>;
-
-  constructor(a: any) {
+  constructor() {
     // const a = new T();
     super();
-    this.mixin = new MatcherMixin<T>(a);
-    this.nextLog = new Logger(this);
+    this.mixin = new MatcherMixin();
+    // this.nextLog = new Logger(this);
   }
 
-  public completed(cb: MatcherCallback<any>): Subject<T> {
+  public completed(cb: MatcherCallback): Subject {
     this.mixin.completed(cb);
     return this;
   }
 
-  public done(result: boolean): Subject<T> {
-    this.next(done(result));
+  public pass(result: boolean): Subject {
+    this.next(Msg.Boolean(result));
     return this;
   }
 
-  public passTo<A = T>(obs: Observer<A> | Observer<A>[] = null): Subject<T> {
+  public passTo(obs: Observer | Observer[] = null): Subject {
     this.mixin.passTo(this, obs);
     return this;
   }
 
-  public match(cb: MatcherCallback<T>): Subject<T> {
-    this.mixin.matchType(this.mixin.type, cb);
+  public match(cb: MatcherCallback): Subject {
+    this.mixin.match(cb);
     return this;
   }
 
-  public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Subject<T> {
-    this.mixin.matchType(typ, cb);
-    return this;
-  }
+  // public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Subject<T> {
+  //   this.mixin.matchType(typ, cb);
+  //   return this;
+  // }
 
-  public matchError(cb: MatcherCallback<Error>): Subject<T> {
-    this.mixin.matchType(Error, cb);
-    return this;
-  }
+  // public matchError(cb: MatcherCallback<Error>): Subject<T> {
+  //   this.mixin.matchType(Error, cb);
+  //   return this;
+  // }
 
-  public matchLogMsg(cb: MatcherCallback<LogMsg>): Subject<T> {
-    this.mixin.matchType(LogMsg, cb);
-    return this;
-  }
+  // public matchLogMsg(cb: MatcherCallback<LogMsg>): Subject<T> {
+  //   this.mixin.matchType(LogMsg, cb);
+  //   return this;
+  // }
 
-  public matchDone(cb: MatcherCallback<Done>): Subject<T> {
-    this.mixin.matchType(Done, cb);
-    return this;
-  }
+  // public matchDone(cb: MatcherCallback<Done>): Subject<T> {
+  //   this.mixin.matchType(Done, cb);
+  //   return this;
+  // }
 
-  public matchComplete(cb: MatcherCallback<Complete>): Subject<T> {
-    this.mixin.matchType(Complete, cb);
-    return this;
-  }
+  // public matchComplete(cb: MatcherCallback<Complete>): Subject<T> {
+  //   this.mixin.matchType(Complete, cb);
+  //   return this;
+  // }
 
-  public wildCard(cb: MatcherCallback<any>): Subject<T> {
-    this.mixin.matchType(null, cb);
-    return this;
-  }
+  // public wildCard(cb: MatcherCallback<any>): Subject<T> {
+  //   this.mixin.matchType(null, cb);
+  //   return this;
+  // }
 
 }
 
-export interface Observer<T = void> extends rx.Observer<RxMe<T>> {
+export interface Observer extends rx.Observer<RxMe> {
 }
 
-export interface ObserverCb<T> {
-  (_: Observer<T>): any;
+export interface ObserverCb {
+  (_: Observer): any;
 }
 
-export class Observable<T = void> {
-  private readonly observerCb: ObserverCb<T>;
-  private subject: Subject<T>;
+export class Observable {
+  private readonly observerCb: ObserverCb;
+  private subject: Subject;
 
-  public static create<T>(typ: any, obsCb: ObserverCb<T>): Observable<T> {
-    const ret = new Observable<T>(typ, obsCb);
+  public static create(obsCb: ObserverCb): Observable {
+    const ret = new Observable(obsCb);
     return ret;
   }
 
-  constructor(typ: any, obsCb: ObserverCb<T>) {
+  constructor(obsCb: ObserverCb) {
     this.observerCb = obsCb;
-    this.subject = new Subject<T>(typ);
+    this.subject = new Subject();
   }
 
-  public match(cb: MatcherCallback<T>): Observable<T> {
+  public match(cb: MatcherCallback): Observable {
     this.subject.match(cb);
     return this;
   }
 
-  public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Observable<T> {
-    this.subject.matchType(typ, cb);
-    return this;
-  }
+  // public matchType<A = T>(typ: any, cb: MatcherCallback<A>): Observable<T> {
+  //   this.subject.matchType(typ, cb);
+  //   return this;
+  // }
 
-  public matchError(cb: MatcherCallback<Error>): Observable<T> {
-    this.subject.matchType(Error, cb);
-    return this;
-  }
+  // public matchError(cb: MatcherCallback<Error>): Observable<T> {
+  //   this.subject.matchType(Error, cb);
+  //   return this;
+  // }
 
-  public matchLogMsg(cb: MatcherCallback<LogMsg>): Observable<T> {
-    this.subject.matchType(LogMsg, cb);
-    return this;
-  }
+  // public matchLogMsg(cb: MatcherCallback<LogMsg>): Observable<T> {
+  //   this.subject.matchType(LogMsg, cb);
+  //   return this;
+  // }
 
-  public matchDone(cb: MatcherCallback<Done>): Observable<T> {
-    this.subject.matchType(Done, cb);
-    return this;
-  }
+  // public matchDone(cb: MatcherCallback<Done>): Observable<T> {
+  //   this.subject.matchType(Done, cb);
+  //   return this;
+  // }
 
-  public matchComplete(cb: MatcherCallback<Complete>): Observable<T> {
-    this.subject.matchType(Complete, cb);
-    return this;
-  }
+  // public matchComplete(cb: MatcherCallback<Complete>): Observable<T> {
+  //   this.subject.matchType(Complete, cb);
+  //   return this;
+  // }
 
-  public wildCard(cb: MatcherCallback<any>): Observable<T> {
-    this.subject.matchType(null, cb);
-    return this;
-  }
+  // public wildCard(cb: MatcherCallback<any>): Observable<T> {
+  //   this.subject.matchType(null, cb);
+  //   return this;
+  // }
 
-  public completed(cb: MatcherCallback<T>): Observable<T> {
+  public completed(cb: MatcherCallback): Observable {
     this.subject.completed(cb);
     return this;
   }
 
-  public passTo(pobs: Observer<T> | Observer<T>[] = null): Observable<T> {
+  public passTo(pobs: Observer | Observer[] = null): Observable {
     this.subject.passTo(pobs);
     this.observerCb(this.subject);
     // this.subscribe(obs => {
@@ -260,7 +240,7 @@ export class Observable<T = void> {
 
 }
 
-export class RxMe<T = void> {
+export class RxMe {
   public readonly objectId: string;
   public readonly data: any;
 
@@ -269,120 +249,123 @@ export class RxMe<T = void> {
     this.data = _data;
   }
 
-  public passthrough(obs: Observer<RxMe>): boolean {
-    obs.next(this);
-    return true;
-  }
-  public forward(obs: Observer<RxMe>): boolean {
-    if (this.isError() || this.isLogMsg()) {
-      obs.next(this);
-      return true;
-    }
-    return false;
-  }
-  public isLogMsg(): boolean {
-    return this.isKind(LogMsg);
-  }
+  // public passthrough(obs: Observer<RxMe>): boolean {
+  //   obs.next(this);
+  //   return true;
+  // }
+  // public forward(obs: Observer<RxMe>): boolean {
+  //   if (this.isError() || this.isLogMsg()) {
+  //     obs.next(this);
+  //     return true;
+  //   }
+  //   return false;
+  // }
+  // public isLogMsg(): boolean {
+  //   return this.isKind(LogMsg);
+  // }
 
-  public asLogMsg(): LogMsg {
-    if (!this.isLogMsg()) {
-      throw 'could not convert to LogMesg';
-    }
-    return this.data;
-  }
+  // public asLogMsg(): LogMsg {
+  //   if (!this.isLogMsg()) {
+  //     throw 'could not convert to LogMesg';
+  //   }
+  //   return this.data;
+  // }
 
-  public isError(): boolean {
-    return this.isKind(Error);
-  }
-  public asError(): Error {
-    if (!this.isError()) {
-      throw 'could not convert to LogMesg';
-    }
-    return this.data;
-  }
+  // public isError(): boolean {
+  //   return this.isKind(Error);
+  // }
+  // public asError(): Error {
+  //   if (!this.isError()) {
+  //     throw 'could not convert to LogMesg';
+  //   }
+  //   return this.data;
+  // }
 
-  public isKind(a: any): boolean {
-    if (!a) {
-      return true;
-    } else if (typeof (a) == 'function') {
-      return this.data instanceof a;
-    } else {
-      return typeof (this.data) == a;
-    }
-  }
+  // public isKind(a: any): boolean {
+  //   if (!a) {
+  //     return true;
+  //   } else if (typeof (a) == 'function') {
+  //     return this.data instanceof a;
+  //   } else {
+  //     return typeof (this.data) == a;
+  //   }
+  // }
 
-  public asKind<A = T>(): A {
-    return this.data as A;
-  }
+  // public asKind<A = T>(): A {
+  //   return this.data as A;
+  // }
 
-  public asKindAny<A = T>(a: any): any {
-    if (!a) {
-      return this;
-    }
-    return this.data as A;
-  }
+  // public asKindAny<A = T>(a: any): any {
+  //   if (!a) {
+  //     return this;
+  //   }
+  //   return this.data as A;
+  // }
 }
 
 // the lint has some problems with forward declarations
-function searchMatcher<T>(mymm: MatcherMixin<T>, matcherIdx: number,
-  obssIdx: number, rxme: RxMe<T>, found: boolean): void {
+function searchMatcher(mymm: MatcherMixin, matcherIdx: number,
+  rxme: RxMe, dontPassTo: boolean): void {
   // console.log(`[${this.objectId}]:enter:${!!this._done}`);
   if (matcherIdx >= mymm.matcher.length) {
-    mymm._completed.forEach(cd => cd(null, rxme));
+    // console.log('Matcher:completed:', dontPassTo);
+    if (!dontPassTo) {
+      // console.log(mymm);
+      mymm.obss.forEach(os => os.next(rxme));
+    }
+    mymm._completed.forEach(cd => cd(rxme, null));
     return;
   }
   const match = mymm.matcher[matcherIdx];
-  if (rxme.isKind(match.type)) {
-    if (obssIdx >= mymm.obss.length || (found && obssIdx == mymm.obss.length - 1)) {
-      searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);
-      return;
-    }
-    const os = mymm.obss[obssIdx];
-    const doneFilter = new Subject<T>(mymm.type);
-    const isCompleted = rxme.isKind(Complete);
-    const doneFilterSubscription = doneFilter.subscribe(obs => {
-      if (obs.data instanceof Done) {
-        doneFilterSubscription.unsubscribe();
-        // if (isCompleted && os) {
-        //   os.next(rxme);
-        //   // console.log('matchDone', this.objectId, os.objectId, isCompleted, rxme);
-        // }
-        searchMatcher(mymm, matcherIdx, obssIdx + 1, rxme, (found || obs.data.result) && !isCompleted);
-      } else {
-        if (os) {
-          os.next(obs);
-        }
-      }
-    });
-    // console.log(`[${this.objectId}]:preMatch:cb:${!!this._done}`);
-    const o = match.cb(doneFilter, rxme.asKindAny(match.type));
-    if (!(o instanceof Subject)) {
-      doneFilter.done(o);
-    }
-  } else {
-    searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);
+  // if (rxme.isKind(match.type)) {
+  // if (obssIdx >= mymm.obss.length || (found && obssIdx == mymm.obss.length - 1)) {
+  //   console.log(`Next:Matcher:`, matcherIdx, found);
+  //   searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);
+  //   return;
+  // }
+  const doneFilter = new Subject();
+  const isCompleted = rxme.data instanceof CompleteMsg;
+  const doneFilterSubscription = doneFilter.subscribe(obs => {
+    Matcher.Boolean((pass) => {
+      doneFilterSubscription.unsubscribe();
+      // if (isCompleted && os) {
+      //   os.next(rxme);
+      //   // console.log('matchDone', this.objectId, os.objectId, isCompleted, rxme);
+      // }
+      // console.log(`Matcher:`, mymm.matcher.length, matcherIdx, dontPassTo, obs.data.done, !isCompleted);
+      searchMatcher(mymm, matcherIdx + 1, rxme,
+        !isCompleted && (dontPassTo || obs.data));
+    })(obs, null);
+  });
+  // console.log(`${rxme.objectId}:${matcherIdx}:${isCompleted}:${JSON.stringify(rxme)}`);
+  const o = match(rxme, doneFilter);
+  if (o !== doneFilter) {
+    doneFilter.pass(!!o);
   }
+  // } else {
+  //   searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);
+  // }
   // console.log(`[${this.objectId}]:leave:${!!this._done}`);
 }
 
-export function data<T>(t: T): RxMe {
-  return new RxMe(t);
-}
+// export function data<T>(t: T): RxMe {
+//   return new RxMe(t);
+// }
 
-export function logMsg(level: LogLevel, ...parts: any[]): RxMe {
-  return data(new LogMsg(level, parts));
-}
+// export function logMsg(level: LogLevel, ...parts: any[]): RxMe {
+//   return data(new LogMsg(level, parts));
+// }
 
-export function error(a: any): RxMe {
-  return data(new Error(a));
-}
+// export function error(a: any): RxMe {
+//   return data(new Error(a));
+// }
 
-export function done(a: boolean): RxMe {
-  return data(new Done(a));
-}
+// export function done(a: boolean): RxMe {
+//   return data(new Done(a));
+// }
 
-export function complete(): RxMe {
-  return data(new Complete());
-}
+// export function complete(): RxMe {
+//   return data(new Complete());
+// }
 
 export default RxMe;
