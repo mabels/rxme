@@ -3,10 +3,11 @@ import * as rx from 'rxjs';
 // import Error from './error';
 // export { Error } from './error';
 
-// export { LogEntry, LogLevel } from './log-msg';
+export *  from './log';
 // import { LogEntry, LogLevel } from './log-msg';
 
-// export { Matcher } from './matcher';
+export * from './matcher';
+export * from './msg';
 // export { Data } from './data';
 import Msg from './msg';
 import { Matcher, MatcherCallback } from './matcher';
@@ -80,10 +81,10 @@ export class MatcherMixin {
         // console.log(`[${this.objectId}]:Matcher:${JSON.stringify(myobs)}`);
         searchMatcher(this, 0, myobs, false);
       }, (err) => {
-        console.log('passTo:Error', err);
+         //console.log('passTo:Error', err);
         searchMatcher(this, 0, Msg.Error(err), false);
       }, () => {
-        console.log('passTo:Completed');
+        //console.log('passTo:Completed');
         searchMatcher(this, 0, Msg.Complete(), false);
       });
     }

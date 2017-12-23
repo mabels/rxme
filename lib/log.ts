@@ -16,24 +16,24 @@ export class LogEntry {
   }
 }
 
-export function Log(level: LogLevel, ...arg: any[]): RxMe {
-  return new RxMe(new LogEntry(level, arg));
+export function Log(level: LogLevel, ...args: any[]): RxMe {
+  return new RxMe(new LogEntry(level, args));
 }
 
-export function LogInfo(...arg: any[]): RxMe {
-  return Log(LogLevel.INFO, arg);
+export function LogInfo(...args: any[]): RxMe {
+  return Log(LogLevel.INFO, ...args);
 }
 
-export function LogWarn(...arg: any[]): RxMe {
-  return Log(LogLevel.WARN, arg);
+export function LogWarn(...args: any[]): RxMe {
+  return Log(LogLevel.WARN, ...args);
 }
 
-export function LogDebug(...arg: any[]): RxMe {
-  return Log(LogLevel.DEBUG, arg);
+export function LogDebug(...args: any[]): RxMe {
+  return Log(LogLevel.DEBUG, ...args);
 }
 
-export function LogError(...arg: any[]): RxMe {
-  return Log(LogLevel.ERROR, arg);
+export function LogError(...args: any[]): RxMe {
+  return Log(LogLevel.ERROR, ...args);
 }
 
 export default LogEntry;
