@@ -81,10 +81,10 @@ export class MatcherMixin {
         // console.log(`[${this.objectId}]:Matcher:${JSON.stringify(myobs)}`);
         searchMatcher(this, 0, myobs, false);
       }, (err) => {
-         //console.log('passTo:Error', err);
+        // console.log('passTo:Error', err);
         searchMatcher(this, 0, Msg.Error(err), false);
       }, () => {
-        //console.log('passTo:Completed');
+        // console.log('passTo:Completed');
         searchMatcher(this, 0, Msg.Complete(), false);
       });
     }
