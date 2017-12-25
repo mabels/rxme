@@ -30,6 +30,10 @@ export class Matcher {
     return this.TypeOf('boolean', cb);
   }
 
+  public static String(cb: (lm: string, sub?: Subject) => MatchReturn): MatcherCallback {
+    return this.TypeOf('string', cb);
+  }
+
   public static WildCard(cb: MatcherCallback): MatcherCallback {
     return cb;
   }

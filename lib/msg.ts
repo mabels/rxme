@@ -15,6 +15,10 @@ export class Msg {
     return new RxMe(nr);
   }
 
+  public static String(str: string): RxMe {
+    return new RxMe(str);
+  }
+
   public static Boolean(is: boolean): RxMe {
     return new RxMe(is);
   }
