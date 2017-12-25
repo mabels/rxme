@@ -19,6 +19,14 @@ export class Msg {
     return new RxMe(is);
   }
 
+  public static True(): RxMe {
+    return this.Boolean(true);
+  }
+
+  public static False(): RxMe {
+    return this.Boolean(true);
+  }
+
   public static Done(result: boolean): RxMe {
     return new RxMe(new DoneMsg(result));
   }
