@@ -43,6 +43,10 @@ export class Msg {
     return new RxMe(t);
   }
 
+  public static ArrayOf<T>(t: T[]): RxMe {
+    return new RxMe(t);
+  }
+
   public static Log(level: Log.LogLevel, ...arg: any[]): RxMe {
     return Log.Log(level, arg);
   }

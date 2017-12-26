@@ -4,12 +4,8 @@ import { ErrorContainer, CompleteMsg, DoneMsg } from './messages';
 
 export type MatchReturn = Subject | boolean | void;
 
-export interface MatcherCallback {
-  (data: RxMe, sub: Subject): MatchReturn;
-}
-
-export interface LogEntryMatcherCallback {
-  (lm: LogEntry, sub?: Subject): MatchReturn;
+export interface MatcherCallback<T = RxMe> {
+  (data: T, sub: Subject): MatchReturn;
 }
 
 export class Matcher {
@@ -75,7 +71,16 @@ export class Matcher {
     };
   }
 
-  public static Log(cb: LogEntryMatcherCallback): MatcherCallback {
+  public static ArrayOf<T>(typ: any, cb: (t: T[], sub?: Subject) => MatchReturn): MatcherCallback {
+    return (rxme, sub) => {
+      if (Array.isArray(rxme.data) && (rxme.data.length == 0 || (rxme.data[0] instanceof typ))) {
+        return cb(rxme.data, sub);
+      }
+      return false;
+    };
+  }
+
+  public static Log(cb: MatcherCallback<LogEntry>): MatcherCallback {
     return (rxme, sub) => {
       const ret = rxme.data instanceof LogEntry;
       if (ret) {
