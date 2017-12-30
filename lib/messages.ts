@@ -6,11 +6,6 @@ export class DoneMsg {
 }
 
 export class CompleteMsg {
-  // // need this for instanceOf
-  // public readonly completed: boolean;
-  // constructor() {
-  //   this.completed = true;
-  // }
 }
 
 export class ErrorContainer {

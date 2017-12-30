@@ -144,15 +144,49 @@ describe('rxme', () => {
       '---3---',
       'inp:wildcard:{}',
       'inp:complete',
-      'out.wildcard:0',
-      'out:complete:0',
-      'out:completed:0',
-      'out.wildcard:1',
-      'out:complete:1',
-      'out:completed:1',
+      // 'out.wildcard:0',
+      // 'out:complete:0',
+      // 'out:completed:0',
+      // 'out.wildcard:1',
+      // 'out:complete:1',
+      // 'out:completed:1',
       'inp:completed',
       '---4---'
     ]);
+  });
+
+  it('stop-complete-pass', () => {
+    return new Promise((rs, rj) => {
+      const inp = new RxMe.Subject();
+      const out = new RxMe.Subject();
+      const results = [42, 45];
+      out.match(RxMe.Matcher.Complete(() => {
+        console.log('out-match-complete');
+        try {
+          assert.isOk(true);
+          rs();
+        } catch (e) {
+          rj(e);
+        }
+      })).match(RxMe.Matcher.Number(nr => {
+        console.log('out-match-number', nr);
+        try {
+          assert.equal(results.shift(), nr);
+          if (results.length == 0) {
+            out.complete();
+          }
+        } catch (e) {
+          rj(e);
+        }
+      })).passTo();
+      inp.match(RxMe.Matcher.Complete(() => {
+        console.log('inp-match-complete');
+        out.next(RxMe.Msg.Number(45));
+        return true;
+      })).passTo(out);
+      inp.next(RxMe.Msg.Number(42));
+      inp.complete();
+    });
   });
 
   it('pass-completed-match', () => {
@@ -293,14 +327,14 @@ describe('rxme', () => {
     inp.next(Msg.Error('Hello World'));
     inp.complete();
     assert.equal(9, completed, 'Total Completed');
-    assert.equal(6, wcount, 'Total WCount');
-    assert.equal(13, count.length, `Total Count:${JSON.stringify(count)}`);
+    assert.equal(5, wcount, 'Total WCount');
+    assert.equal(12, count.length, `Total Count:${JSON.stringify(count)}`);
   });
 
   it('async', async () => {
     const counterPass = { true: 0, false: 0 };
     function countPass(b: boolean): boolean {
-      if (b)  { counterPass.true++; }
+      if (b) { counterPass.true++; }
       if (!b) { counterPass.false++; }
       return b;
     }
