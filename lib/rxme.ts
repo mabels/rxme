@@ -8,6 +8,7 @@ export *  from './log';
 
 export * from './matcher';
 export * from './msg';
+export * from './messages';
 // export { Data } from './data';
 import Msg from './msg';
 import { Matcher, MatcherCallback } from './matcher';
@@ -77,15 +78,19 @@ export class MatcherMixin {
     // console.log(`[${obss}]:[${this.obss}]`);
     if (!this.subscription) {
       // console.log(`[${this.objectId}]:passTo:[${this.subscription}]`);
+      let gotCompleted = false;
       this.subscription = sbj.subscribe(myobs => {
         // console.log(`[${this.objectId}]:Matcher:${JSON.stringify(myobs)}`);
+        gotCompleted = gotCompleted || myobs.data instanceof CompleteMsg;
         searchMatcher(this, 0, myobs, false);
       }, (err) => {
         // console.log('passTo:Error', err);
         searchMatcher(this, 0, Msg.Error(err), false);
       }, () => {
         // console.log('passTo:Completed');
-        searchMatcher(this, 0, Msg.Complete(), false);
+        if (!gotCompleted) {
+          searchMatcher(this, 0, Msg.Complete(), false);
+        }
       });
     }
   }
@@ -122,7 +127,7 @@ export class Subject extends rx.Subject<RxMe> {
     return this;
   }
 
-  public pass(result: boolean): Subject {
+  public stopPass(result: boolean): Subject {
     this.next(Msg.Boolean(result));
     return this;
   }
@@ -314,6 +319,9 @@ function searchMatcher(mymm: MatcherMixin, matcherIdx: number,
       // console.log(mymm);
       mymm.obss.forEach(os => os.next(rxme));
     }
+    if (rxme.data instanceof CompleteMsg) {
+      mymm.obss.forEach(os => os.complete());
+    }
     mymm._completed.forEach(cd => cd(rxme, null));
     return;
   }
@@ -341,7 +349,7 @@ function searchMatcher(mymm: MatcherMixin, matcherIdx: number,
   // console.log(`${rxme.objectId}:${matcherIdx}:${isCompleted}:${JSON.stringify(rxme)}`);
   const o = match(rxme, doneFilter);
   if (o !== doneFilter) {
-    doneFilter.pass(!!o);
+    doneFilter.stopPass(!!o);
   }
   // } else {
   //   searchMatcher(mymm, matcherIdx + 1, 0, rxme, found);

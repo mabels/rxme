@@ -112,47 +112,109 @@ describe('rxme', () => {
     inp.complete();
     calllog.push('---4---');
     assert.deepEqual(calllog, [
-        'inp:wildcard:false',
-        'inp:done:false',
-        'out.wildcard:0',
-        'out:done:0',
-        'out:completed:0',
-        'out.wildcard:1',
-        'out:done:1',
-        'out:completed:1',
-        'inp:completed',
-        '---1---',
-        'inp:wildcard:true',
-        'inp:done:true',
-        // 'out.wildcard:0',
-        // 'out:done:0',
-        // 'out:completed:0',
-        // 'out.wildcard:1',
-        // 'out:done:1',
-        // 'out:completed:1',
-        'inp:completed',
-        '---2---',
-        'inp:wildcard:false',
-        'inp:done:false',
-        'out.wildcard:0',
-        'out:done:0',
-        'out:completed:0',
-        'out.wildcard:1',
-        'out:done:1',
-        'out:completed:1',
-        'inp:completed',
-        '---3---',
-        'inp:wildcard:{}',
-        'inp:complete',
-        'out.wildcard:0',
-        'out:complete:0',
-        'out:completed:0',
-        'out.wildcard:1',
-        'out:complete:1',
-        'out:completed:1',
-        'inp:completed',
-        '---4---'
+      'inp:wildcard:false',
+      'inp:done:false',
+      'out.wildcard:0',
+      'out:done:0',
+      'out:completed:0',
+      'out.wildcard:1',
+      'out:done:1',
+      'out:completed:1',
+      'inp:completed',
+      '---1---',
+      'inp:wildcard:true',
+      'inp:done:true',
+      // 'out.wildcard:0',
+      // 'out:done:0',
+      // 'out:completed:0',
+      // 'out.wildcard:1',
+      // 'out:done:1',
+      // 'out:completed:1',
+      'inp:completed',
+      '---2---',
+      'inp:wildcard:false',
+      'inp:done:false',
+      'out.wildcard:0',
+      'out:done:0',
+      'out:completed:0',
+      'out.wildcard:1',
+      'out:done:1',
+      'out:completed:1',
+      'inp:completed',
+      '---3---',
+      'inp:wildcard:{}',
+      'inp:complete',
+      'out.wildcard:0',
+      'out:complete:0',
+      'out:completed:0',
+      'out.wildcard:1',
+      'out:complete:1',
+      'out:completed:1',
+      'inp:completed',
+      '---4---'
     ]);
+  });
+
+  it('pass-completed-match', () => {
+    return new Promise((rs, rj) => {
+      const inp = RxMe.Observable.create(obs => {
+        obs.next(RxMe.Msg.Number(42));
+        obs.complete();
+        console.log('inp-complete');
+      });
+      const out = new RxMe.Subject();
+      out.match(RxMe.Matcher.Complete(() => {
+        console.log('match-complete');
+        try {
+          assert.isOk(true);
+          rs();
+        } catch (e) {
+          rj(e);
+        }
+      })).match(RxMe.Matcher.Number(nr => {
+        console.log('match-number');
+        try {
+          assert.equal(42, nr);
+        } catch (e) {
+          rj(e);
+        }
+      })).passTo();
+      inp.passTo(out);
+    });
+  });
+
+  it('pass-completed-subscribe', () => {
+    return new Promise((rs, rj) => {
+      const inp = RxMe.Observable.create(obs => {
+        obs.next(RxMe.Msg.Number(42));
+        obs.complete();
+        console.log('inp-complete');
+      });
+      const out = new RxMe.Subject();
+      const result = [
+        (a: any) => assert.equal(42, a.data),
+        (a: any) => assert.isTrue((a.data instanceof RxMe.CompleteMsg))
+      ];
+      out.subscribe((a) => {
+        console.log('subscribe-rxme', a);
+        try {
+          result.shift()(a);
+        } catch (e) {
+          rj(e);
+        }
+      }, (e) => {
+        rj(e);
+      }, () => {
+        console.log('subscribe-complete');
+        try {
+          assert.isOk(true);
+          rs();
+        } catch (e) {
+          rj(e);
+        }
+      });
+      inp.passTo(out);
+    });
   });
 
   it('sync', () => {
@@ -162,7 +224,7 @@ describe('rxme', () => {
     let count: string[] = [];
     let wcount = 0;
     out.passTo().match(Matcher.WildCard(rxme => {
-      // console.log(`[${obs.objectId}]:out:wildcard:`);
+      // console.log(`[${rxme.objectId}]:out:wildcard:`, rxme);
       wcount++;
       return false;
     })).match(Matcher.Error(err => {
@@ -236,6 +298,12 @@ describe('rxme', () => {
   });
 
   it('async', async () => {
+    const counterPass = { true: 0, false: 0 };
+    function countPass(b: boolean): boolean {
+      if (b)  { counterPass.true++; }
+      if (!b) { counterPass.false++; }
+      return b;
+    }
     const inp = new RxMe.Subject();
     const out = new RxMe.Subject();
     return Promise.all([
@@ -244,9 +312,9 @@ describe('rxme', () => {
         let ocount = 0;
         let wcount = 0;
         out.passTo().match(Matcher.WildCard((any, cpl) => {
-          // console.log(`[${obs.objectId}]:out:wildcard:`, any);
+          // console.log(`[${any.objectId}]:out:wildcard:`, any);
           wcount++;
-          setTimeout(() => cpl.pass(false), 1);
+          setTimeout(() => cpl.stopPass(false), 1);
           return cpl;
         })).match(Matcher.Error((err, cpl) => {
           // console.log(`[${obs.objectId}]:matchError`);
@@ -256,25 +324,25 @@ describe('rxme', () => {
             rj(e);
           }
           ocount++;
-          setTimeout(() => cpl.pass(true), 1);
+          setTimeout(() => cpl.stopPass(true), 1);
           return cpl;
           // console.log(obs);
         })).match(Matcher.Complete((cpl) => {
           // console.log(`[${obs.objectId}]:matchComplete`);
           ocount++;
-          setTimeout(() => cpl.pass(true), 1);
+          setTimeout(() => cpl.stopPass(true), 1);
           return cpl;
           // console.log(obs);
         })).match(Matcher.Log((log, cpl) => {
           // console.log(`[${obs.objectId}]:matchLogMsg`);
           try {
             assert.equal(log.level, LogLevel.DEBUG);
-            assert.deepEqual(log.parts, ['world']);
+            assert.deepEqual(log.parts, ['debug-world']);
           } catch (e) {
             rj(e);
           }
           ocount++;
-          setTimeout(() => cpl.pass(true), 1);
+          setTimeout(() => cpl.stopPass(true), 1);
           return cpl;
           // console.log(obs);
         })).match(Matcher.Type(MyTest, (data: MyTest, cpl) => {
@@ -285,7 +353,7 @@ describe('rxme', () => {
             rj(e);
           }
           ocount++;
-          setTimeout(() => cpl.pass(true), 1);
+          setTimeout(() => cpl.stopPass(true), 1);
           return cpl;
         })).match(Matcher.Number((data, cpl) => {
           // console.log(`[${obs.objectId}]:match:Number`);
@@ -295,14 +363,14 @@ describe('rxme', () => {
             rj(e);
           }
           ocount++;
-          setTimeout(() => cpl.pass(true), 1);
+          setTimeout(() => cpl.stopPass(true), 1);
           return cpl;
         })).completed((obs, data) => {
-          // console.log(completed);
-          if (++completed >= 4) {
+          // console.log('out:completed', completed, obs);
+          if (++completed >= 5) {
             try {
-              assert.equal(4, completed, 'O-Total Completed');
               assert.equal(5, ocount, `O-Total Count:${wcount}:${ocount}:${completed}`);
+              assert.equal(5, completed, 'O-Total Completed');
               assert.equal(5, wcount, 'O-Total WCount');
               rs();
             } catch (e) {
@@ -316,36 +384,50 @@ describe('rxme', () => {
 
         let completed = 0;
         let icount = 0;
+        let ccount = 0;
         inp.passTo(out)
-          .match(Matcher.Error((err, cpl) => {
-            // console.log(`[${obs.objectId}]:inp:matchError:${JSON.stringify(err)}`);
+          .match(RxMe.Matcher.Complete(() => {
+            ++ccount;
+          }))
+          .match(Matcher.Error((err, cpl, rxme) => {
+            // console.log(`[${rxme.objectId}]:inp:matchError:${JSON.stringify(err)}`);
             icount++;
-            setTimeout(() => cpl.pass(err._error == 'Start World'), 1);
+            setTimeout(() => cpl.stopPass(countPass(err == 'Start World')), 1);
             return cpl;
           }))
           .match(Matcher.Log((log, cpl) => {
             // console.log(`[${obs.objectId}]:inp:matchLogMsg:${JSON.stringify(log)}`);
             icount++;
-            setTimeout(() => cpl.pass(true), 1);
+            setTimeout(() => cpl.stopPass(countPass(false)), 1);
             return cpl;
           }))
-          .match(Matcher.Log((log, cpl) => {
-            // console.log(`[${obs.objectId}]:inp:matchLogMsg:${JSON.stringify(log)}`);
+          .match(Matcher.Log((log, cpl, rxme) => {
+            // console.log(`[${rxme.objectId}]:inp:matchLogMsg:${JSON.stringify(log)}`);
             icount++;
-            setTimeout(() => cpl.pass(log.level == LogLevel.INFO), 1);
+            setTimeout(() => cpl.stopPass(countPass(log.level == LogLevel.INFO)), 1);
             return cpl;
           }))
           .match(Matcher.Type(MyTest, (data: MyTest, cpl) => {
             // console.log(`[${obs.objectId}]:inp:match<MyTest>:${JSON.stringify(data)}`);
             icount++;
-            setTimeout(() => cpl.pass(data.test == 88), 1);
+            setTimeout(() => cpl.stopPass(countPass(data.test == 88)), 1);
             return cpl;
           }))
           .completed((obs, data) => {
+            // console.log('inp:completed', completed, obs);
+            if (completed == 7) {
+              setTimeout(() => {
+                inp.complete();
+                // console.log('imp-completed');
+              }, 5);
+            }
             if (++completed >= 9) {
               try {
-                assert.equal(9, icount, `I-Total Count:${icount}:${completed}`);
+                assert.equal(8, icount, `I-Total Count:${icount}:${completed}`);
+                assert.equal(counterPass.false, 5, `count pass false:${JSON.stringify(counterPass)}`);
+                assert.equal(counterPass.true, 3, `count pass true:${JSON.stringify(counterPass)}`);
                 assert.equal(9, completed, 'I-Total Completed');
+                assert.equal(1, ccount, 'I-Total Ccount');
                 rs();
               } catch (e) {
                 rj(e);
@@ -354,16 +436,16 @@ describe('rxme', () => {
             return !!completed;
           });
         // console.log(`[${inp.objectId}]:inp:preNext`);
-        inp.next(LogError('Start World'));
-        inp.next(Msg.Log(LogLevel.INFO, 'world'));
+        inp.next(Msg.Error('Start World'));
+        inp.next(Msg.Log(LogLevel.INFO, 'info-world'));
         inp.next(Msg.Type(new MyTest(88)));
+        inp.next(Msg.Number(42));
 
         inp.next(Msg.Number(42));
-        inp.next(Msg.Number(42));
-        inp.next(Msg.Type(new MyTest()));
-        inp.next(Msg.Log(LogLevel.DEBUG, 'world'));
+        inp.next(Msg.Type(new MyTest(77)));
+        inp.next(Msg.Log(LogLevel.DEBUG, 'debug-world'));
         inp.next(Msg.Error('Hello World'));
-        inp.complete();
+        // inp.complete();
       })]);
   });
 

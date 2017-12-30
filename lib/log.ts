@@ -8,9 +8,11 @@ export enum LogLevel {
 }
 
 export class LogEntry {
+  public readonly create: Date;
   public readonly level: LogLevel;
   public readonly parts: any[];
-  constructor(level: LogLevel, parts: any[]) {
+  constructor(level: LogLevel, parts: any[], create = new Date()) {
+    this.create = create;
     this.level = level;
     this.parts = parts;
   }

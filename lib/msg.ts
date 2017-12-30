@@ -1,14 +1,14 @@
 import { RxMe } from './rxme';
 
 import * as Log from './log';
-import { ErrorContainer, CompleteMsg } from './messages';
+import { ErrorContainer, CompleteMsg, DoneMsg } from './messages';
 
-export class DoneMsg {
-  public readonly done: boolean;
-  constructor(result: boolean) {
-    this.done = result;
-  }
-}
+// export class DoneMsg {
+//   public readonly done: boolean;
+//   constructor(result: boolean) {
+//     this.done = result;
+//   }
+// }
 
 export class Msg {
   public static Number(nr: number): RxMe {
@@ -48,7 +48,7 @@ export class Msg {
   }
 
   public static Log(level: Log.LogLevel, ...arg: any[]): RxMe {
-    return Log.Log(level, arg);
+    return Log.Log(level, ...arg);
   }
 
   public static LogInfo(...arg: any[]): RxMe {
