@@ -1,4 +1,4 @@
-import { RxMe } from './rxme';
+import { RxMe, Observer } from './rxme';
 
 import * as Log from './log';
 import { ErrorContainer, CompleteMsg, DoneMsg } from './messages';
@@ -37,6 +37,10 @@ export class Msg {
 
   public static Complete(): RxMe {
     return new RxMe(new CompleteMsg());
+  }
+
+  public static Observer(obs: Observer): RxMe {
+    return new RxMe(obs);
   }
 
   public static Type<T>(t: T): RxMe {

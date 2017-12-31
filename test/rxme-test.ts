@@ -257,7 +257,7 @@ describe('rxme', () => {
     const out = new RxMe.Subject();
     let count: string[] = [];
     let wcount = 0;
-    out.passTo().match(Matcher.WildCard(rxme => {
+    out.match(Matcher.WildCard(rxme => {
       // console.log(`[${rxme.objectId}]:out:wildcard:`, rxme);
       wcount++;
       return false;
@@ -288,7 +288,7 @@ describe('rxme', () => {
       assert.equal(data, 42);
       count.push('out:Number');
       return false;
-    }));
+    })).passTo();
 
     // console.log(`sync:`, inp.objectId, out.objectId);
     let completed = 0;

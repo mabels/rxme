@@ -1,4 +1,4 @@
-import { Subject, RxMe } from './rxme';
+import { Subject, RxMe, Observer } from './rxme';
 import { LogEntry } from './log';
 import { ErrorContainer, CompleteMsg, DoneMsg } from './messages';
 
@@ -57,6 +57,15 @@ export class Matcher {
     return (rxme, sub) => {
       if (rxme.data instanceof CompleteMsg) {
         return cb(sub, rxme);
+      }
+      return false;
+    };
+  }
+
+  public static Observer(cb: (obs: Observer, sub?: Subject, rxme?: RxMe) => MatchReturn): MatcherCallback {
+    return (rxme, sub) => {
+      if (rxme.data.next && rxme.data.complete && rxme.data.error) {
+        return cb(rxme.data, sub, rxme);
       }
       return false;
     };
