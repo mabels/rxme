@@ -14,6 +14,12 @@ import Msg from './msg';
 import { Matcher, MatcherCallback } from './matcher';
 import { CompleteMsg } from './messages';
 
+export declare type ObserverCbRet = void | (() => void);
+
+export interface ObserverCb {
+  (_: Observer): ObserverCbRet;
+}
+
 export class MatcherMixin {
   public readonly objectId: string;
   public readonly obss: Observer[];
@@ -21,6 +27,7 @@ export class MatcherMixin {
   public readonly _completed: MatcherCallback[];
   // public readonly type: any; // class match
   private subscription: rx.Subscription;
+  private unsubscribeCb: ObserverCbRet;
 
   constructor() {
     // this.type = a;
@@ -30,7 +37,22 @@ export class MatcherMixin {
     this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
   }
 
-  public passTo(sbj: Subject, obs: Observer | Observer[] = null): void {
+  public unsubscribe(): void {
+    if (this.subscription) {
+      if (this.unsubscribeCb) {
+        this.unsubscribeCb();
+      }
+      this.subscription.unsubscribe();
+      this.subscription = undefined;
+    }
+  }
+
+  public setUnsubscribeCb(cb: ObserverCbRet): MatcherMixin {
+    this.unsubscribeCb = cb;
+    return this;
+  }
+
+  public passTo(sbj: Subject, obs: Observer | Observer[] = null): MatcherMixin {
     let obss: Observer[] = [];
     if (obs instanceof Array) {
       obss = obs;
@@ -59,6 +81,7 @@ export class MatcherMixin {
         }
       });
     }
+    return this;
   }
 
   public match(cb: MatcherCallback): void {
@@ -102,14 +125,22 @@ export class Subject extends rx.Subject<RxMe> {
     return this;
   }
 
+  public setUnsubscribeCb(cb: ObserverCbRet): Subject {
+    this.mixin.setUnsubscribeCb(cb);
+    return this;
+  }
+
+  public unsubscribe(): Subject {
+    this.mixin.unsubscribe();
+    return this;
+  }
+
 }
 
 export interface Observer extends rx.Observer<RxMe> {
 }
 
-export interface ObserverCb {
-  (_: Observer): any;
-}
+
 
 export class Observable {
   private readonly observerCb: ObserverCb;
@@ -135,12 +166,13 @@ export class Observable {
     return this;
   }
 
+  public unsubscribe(): Observable {
+    this.subject.unsubscribe();
+    return this;
+  }
+
   public passTo(pobs: Observer | Observer[] = null): Observable {
-    this.subject.passTo(pobs);
-    this.observerCb(this.subject);
-    // this.subscribe(obs => {
-    //   ret.next(obs);
-    // });
+    this.subject.passTo(pobs).setUnsubscribeCb(this.observerCb(this.subject));
     return this;
   }
 

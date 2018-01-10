@@ -251,6 +251,17 @@ describe('rxme', () => {
     });
   });
 
+  it('unsubscribe', () => {
+    let found = 0;
+    RxMe.Observable.create(obs => {
+      return () => {
+        found++;
+        // console.log('unsubscribe');
+      };
+    }).passTo().unsubscribe().passTo().unsubscribe().unsubscribe();
+    assert.equal(2, found);
+  });
+
   it('sync', () => {
     // const x = new RxMe.Error('');
     const inp = new RxMe.Subject();
