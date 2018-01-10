@@ -140,8 +140,6 @@ export class Subject extends rx.Subject<RxMe> {
 export interface Observer extends rx.Observer<RxMe> {
 }
 
-
-
 export class Observable {
   private readonly observerCb: ObserverCb;
   private subject: Subject;
