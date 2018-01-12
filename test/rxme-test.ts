@@ -3,14 +3,15 @@ import * as RxMe from '../lib/rxme';
 import { Matcher } from '../lib/matcher';
 import { Msg } from '../lib/msg';
 import { Log, LogLevel, LogDebug, LogInfo, LogError, LogWarn } from '../lib/log';
+// import { ErrorContainer, ErrorSource } from '../lib/rxme';
+import { Othingy } from 'othing';
 
-class MyTest {
+class MyTest extends Othingy {
   public readonly test: number;
-  public readonly objectId: string;
 
   constructor(test: number = 77) {
+    super();
     this.test = test;
-    this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
   }
 }
 
@@ -155,6 +156,88 @@ describe('rxme', () => {
     ]);
   });
 
+  it('map-it', () => {
+    return new Promise((rs, rj) => {
+      const sinkStrings: string[] = [];
+      const sink = new RxMe.Subject()
+        .match(RxMe.Matcher.String(str => {
+          // console.log(`sink:[${str}]`);
+          sinkStrings.push(str);
+        }))
+        .match(RxMe.Matcher.Error(exp => {
+          rj(exp);
+        }))
+        .match(RxMe.Matcher.Complete(() => {
+          // console.log(`Completed`, sinkStrings);
+          assert.deepEqual(sinkStrings, [
+            'second-match-[string:matched:[string]]',
+            'string:matched:[string]',
+            'second-match-[string]',
+            'string'
+          ]);
+          rs();
+        })).start();
+      const second = new RxMe.Subject()
+        .match(RxMe.Matcher.String((str, sub) => {
+          sub.next(RxMe.Msg.String(`second-match-[${str}]`));
+        })).passTo(sink);
+      const first = new RxMe.Subject().passTo(second);
+      RxMe.Observable.create(obs => {
+        obs.next(RxMe.Msg.String('string'));
+        obs.complete();
+      }).match(RxMe.Matcher.String((str, sub) => {
+        sub.next(RxMe.Msg.String(`string:matched:[${str}]`));
+      })).passTo(first);
+    });
+  });
+
+  it('push-matches-exception', () => {
+    return new Promise((rs, rj) => {
+      const sinkStings: string[] = [];
+      const sink = new RxMe.Subject()
+        .match(RxMe.Matcher.Error((exp, _, __, ec) => {
+          // assert.equal(ec.source, ErrorSource.EXCEPTION);
+          sinkStings.push(exp);
+        }))
+        .match(RxMe.Matcher.String(str => {
+          // console.log(`+++2`);
+          sinkStings.push(str);
+        }))
+        .match(RxMe.Matcher.Complete(() => {
+          // console.log(`+++3`, JSON.stringify(sinkStings));
+          assert.deepEqual(sinkStings, [
+            'spring:matched:[exception]',
+            'exception',
+            'spring-error-[Sink-Match-Exception]',
+            'Sink-Match-Exception',
+            'spring:matched:[no-exception]',
+            'no-exception',
+            'spring-error-[Sink-Exception]',
+            'Sink-Exception'
+          ]);
+          rs();
+        })).passTo();
+
+      RxMe.Observable.create(obs => {
+        // send message and complete
+        obs.next(RxMe.Msg.String('exception'));
+        obs.next(RxMe.Msg.String('no-exception'));
+        throw 'Sink-Exception';
+      }).match(RxMe.Matcher.String((str, sub) => {
+        sub.next(RxMe.Msg.String(`spring:matched:[${str}]`));
+        if (str.startsWith('exception')) {
+          // send exception message
+          throw 'Sink-Match-Exception';
+        }
+      })).match(RxMe.Matcher.Error((err, sub) => {
+        sub.next(RxMe.Msg.String(`spring-error-[${err}]`));
+      })).match(RxMe.Matcher.Complete(() => {
+        throw 'complete-exception';
+      })).passTo(sink);
+
+    });
+  });
+
   it('stop-complete-pass', () => {
     return new Promise((rs, rj) => {
       const inp = new RxMe.Subject();
@@ -251,6 +334,37 @@ describe('rxme', () => {
     });
   });
 
+  it('stop-matching', () => {
+    return new Promise((rs, rj) => {
+      const out = new RxMe.Subject();
+      const collect: number[] = [];
+      out.match(RxMe.Matcher.Number((rx, sub) => {
+        collect.push(rx);
+        if (collect.length == 1 && rx == 4711) {
+          sub.stopMatching();
+        }
+        if (collect.length > 1 && rx == 4711) {
+          sub.stopMatching();
+        }
+      })).match(RxMe.Matcher.Number((rx, sub) => {
+        collect.push(rx);
+        if (rx == 4712) {
+          sub.stopMatching();
+          return;
+        }
+      })).match(RxMe.Matcher.Error(err => {
+        rj(err);
+      })).match(RxMe.Matcher.Complete(() => {
+        assert.deepEqual(collect, [ 4711, 4712, 4712, 4711 ]);
+        rs();
+      })).passTo();
+      out.next(RxMe.Msg.Number(4711));
+      out.next(RxMe.Msg.Number(4712));
+      out.next(RxMe.Msg.Number(4711));
+      out.complete();
+    });
+  });
+
   it('unsubscribe', () => {
     let found = 0;
     RxMe.Observable.create(obs => {
@@ -260,6 +374,31 @@ describe('rxme', () => {
       };
     }).passTo().unsubscribe().passTo().unsubscribe().unsubscribe();
     assert.equal(2, found);
+  });
+
+  it('unpass', () => {
+    const sink = new RxMe.Subject();
+    const sourceCollection: string[] = [];
+    const source = new RxMe.Subject().match(RxMe.Matcher.String(str => {
+      sourceCollection.push(str);
+    })).start();
+    sink.passTo();
+    sink.next(RxMe.Msg.String('To Nothing'));
+    sink.passTo(source);
+    sink.next(RxMe.Msg.String('One Dest'));
+    sink.unPassTo(sink); // should not change anything
+    sink.passTo(source);
+    sink.next(RxMe.Msg.String('Two Dest'));
+    sink.unPassTo(source);
+    sink.next(RxMe.Msg.String('One UnpassTo Dest'));
+    sink.unPassTo(source);
+    sink.next(RxMe.Msg.String('do nothing again'));
+    assert.deepEqual(sourceCollection, [
+      'One Dest',
+      'Two Dest',
+      'Two Dest',
+      'One UnpassTo Dest'
+    ]);
   });
 
   it('sync', () => {

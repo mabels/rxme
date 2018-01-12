@@ -22,16 +22,17 @@
   },
   "hmmepage": "https://github.com/mabels/rxme#readme",
   "devDependencies": {
-    "@types/chai": "^4.0.10",
-    "@types/mocha": "^2.2.44",
+    "@types/chai": "^4.1.0",
+    "@types/mocha": "^2.2.46",
     "chai": ">=3.5.0",
     "cz-conventional-changelog": "^2.1.0",
-    "mocha": "^4.0.1",
+    "mocha": "^4.1.0",
     "rimraf": "^2.6.2",
-    "tslint": "^5.8.0",
+    "tslint": "^5.9.1",
     "typescript": "^2.6.2"
   },
   "dependencies": {
+    "othing": "^1.0.1",
     "rxjs": "^5.5.6"
   },
   "config": {

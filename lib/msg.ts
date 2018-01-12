@@ -1,4 +1,4 @@
-import { RxMe, Observer } from './rxme';
+import { RxMe, Observer, ErrorSource } from './rxme';
 
 import * as Log from './log';
 import { ErrorContainer, CompleteMsg, DoneMsg } from './messages';
@@ -71,8 +71,8 @@ export class Msg {
     return Log.LogError(arg);
   }
 
-  public static Error(...arg: any[]): RxMe {
-    return new RxMe(new ErrorContainer(arg.length == 1 ? arg[0] : arg));
+  public static Error(err: any, from: ErrorSource = ErrorSource.DIRECT): RxMe {
+    return new RxMe(new ErrorContainer(err, from));
   }
 }
 

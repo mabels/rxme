@@ -9,6 +9,9 @@ export interface MatcherCallback<T = RxMe> {
 }
 
 export class Matcher {
+
+  // public static readonly StopMatching: StopMatching = new StopMatching();
+
   public static TypeOf<T>(typeOf: string, cb: (lm: T, sub?: Subject, rxme?: RxMe) => MatchReturn): MatcherCallback {
     return (rxme, sub) => {
       if (typeof(rxme.data) == typeOf) {
@@ -34,10 +37,10 @@ export class Matcher {
     return cb;
   }
 
-  public static Error(cb: (err: any, sub?: Subject, rxme?: RxMe) => MatchReturn): MatcherCallback {
+  public static Error(cb: (err: any, sub?: Subject, rxme?: RxMe, ec?: ErrorContainer) => MatchReturn): MatcherCallback {
     return (rxme, sub) => {
       if (rxme.data instanceof ErrorContainer) {
-        return cb(rxme.data.error, sub, rxme);
+        return cb(rxme.data.error, sub, rxme, rxme.data);
       }
       return false;
     };

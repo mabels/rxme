@@ -12,7 +12,8 @@ export * from './messages';
 // export { Data } from './data';
 import Msg from './msg';
 import { Matcher, MatcherCallback } from './matcher';
-import { CompleteMsg } from './messages';
+import { CompleteMsg, ErrorSource, DoneMsg } from './messages';
+import { Othingy, IfOthing, IsOthing } from 'othing';
 
 export declare type ObserverCbRet = void | (() => void);
 
@@ -20,8 +21,8 @@ export interface ObserverCb {
   (_: Observer): ObserverCbRet;
 }
 
-export class MatcherMixin {
-  public readonly objectId: string;
+export class MatcherMixin extends Othingy {
+  // public readonly objectId: string;
   public readonly obss: Observer[];
   public readonly matcher: MatcherCallback[];
   public readonly _completed: MatcherCallback[];
@@ -30,11 +31,12 @@ export class MatcherMixin {
   private unsubscribeCb: ObserverCbRet;
 
   constructor() {
+    super();
     // this.type = a;
     this.obss = [];
     this.matcher = [];
     this._completed = [];
-    this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
+    // this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
   }
 
   public unsubscribe(): void {
@@ -49,6 +51,25 @@ export class MatcherMixin {
 
   public setUnsubscribeCb(cb: ObserverCbRet): MatcherMixin {
     this.unsubscribeCb = cb;
+    return this;
+  }
+
+  public unPassTo(sbj: Subject, obs: Observer | Observer[]): MatcherMixin {
+    let obss: Observer[];
+    if (obs instanceof Array) {
+      obss = obs.slice();
+    } else if (obs) {
+      obss = [obs];
+    }
+    let idx = 0;
+    while (obss.length && idx < this.obss.length) {
+      const fidx = obss.indexOf(this.obss[idx++]);
+      if (fidx >= 0) {
+        --idx;
+        obss.splice(fidx, 1);
+        this.obss.splice(idx, 1);
+      }
+    }
     return this;
   }
 
@@ -94,15 +115,20 @@ export class MatcherMixin {
 
 }
 
-export class Subject extends rx.Subject<RxMe> {
+export enum MatchingState {
+  ALL = 'all',
+  STOP = 'stop'
+}
+
+@IsOthing()
+export class Subject extends rx.Subject<RxMe> implements IfOthing {
   private readonly mixin: MatcherMixin;
-  // public nextLog: Logger<T>;
+  public readonly objectId: string;
+  public matchingState: MatchingState = MatchingState.ALL;
 
   constructor() {
-    // const a = new T();
     super();
     this.mixin = new MatcherMixin();
-    // this.nextLog = new Logger(this);
   }
 
   public completed(cb: MatcherCallback): Subject {
@@ -111,12 +137,28 @@ export class Subject extends rx.Subject<RxMe> {
   }
 
   public stopPass(result: boolean): Subject {
-    this.next(Msg.Boolean(result));
+    this.next(Msg.Done(result));
+    this.complete();
+    return this;
+  }
+
+  public stopMatching(): Subject {
+    this.matchingState = MatchingState.STOP;
+    return this;
+  }
+
+  public unPassTo(obs: Observer | Observer[]): Subject {
+    this.mixin.unPassTo(this, obs);
     return this;
   }
 
   public passTo(obs: Observer | Observer[] = null): Subject {
     this.mixin.passTo(this, obs);
+    return this;
+  }
+
+  public start(): Subject {
+    this.passTo();
     return this;
   }
 
@@ -170,18 +212,31 @@ export class Observable {
   }
 
   public passTo(pobs: Observer | Observer[] = null): Observable {
-    this.subject.passTo(pobs).setUnsubscribeCb(this.observerCb(this.subject));
+    this.subject.passTo(pobs);
+    try {
+      this.subject.setUnsubscribeCb(this.observerCb(this.subject));
+    } catch (e) {
+      // console.log(`Subscribe:${e}`);
+      this.subject.next(Msg.Error(e, ErrorSource.EXCEPTION));
+      this.subject.complete();
+    }
+    return this;
+  }
+
+  public start(): Observable {
+    this.passTo();
     return this;
   }
 
 }
 
-export class RxMe {
-  public readonly objectId: string;
+export class RxMe extends Othingy {
+  // public readonly objectId: string;
   public readonly data: any;
 
   constructor(_data: any) {
-    this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
+    super();
+    // this.objectId = ('' + (1000000000 + ~~(Math.random() * 1000000000))).slice(1);
     this.data = _data;
   }
 
@@ -207,17 +262,39 @@ function searchMatcher(mymm: MatcherMixin, matcherIdx: number,
   const match = mymm.matcher[matcherIdx];
   const doneFilter = new Subject();
   // const isCompleted = rxme.data instanceof CompleteMsg;
-  const doneFilterSubscription = doneFilter.subscribe(obs => {
-    Matcher.Boolean((pass) => {
+  const doneFilterSubscription = doneFilter.subscribe(msg => {
+    // console.log(`Obs:${JSON.stringify(msg)}`);
+    let processed = false;
+    Matcher.Type<DoneMsg>(DoneMsg, (pass) => {
+      processed = true;
+      // console.log(`GotDone:${doneFilter.objectId}:${JSON.stringify(pass)}`);
       doneFilterSubscription.unsubscribe();
-      searchMatcher(mymm, matcherIdx + 1, rxme,
-        /* !isCompleted && */ (dontPassTo || obs.data));
-    })(obs, null);
+      searchMatcher(mymm,
+        doneFilter.matchingState == MatchingState.STOP ? mymm.matcher.length : matcherIdx + 1,
+        rxme, /* !isCompleted && */ (dontPassTo || pass.result));
+    })(msg, null);
+    if (!processed) {
+      mymm.obss.forEach(obs => obs.next(msg));
+    }
+  }, err => {
+    console.log(`Error:${doneFilter.objectId}:${err}`);
+  }, () => {
+    console.log(`Completed:${doneFilter.objectId}`);
   });
   // console.log(`${rxme.objectId}:${matcherIdx}:${isCompleted}:${JSON.stringify(rxme)}`);
-  const o = match(rxme, doneFilter);
-  if (o !== doneFilter) {
-    doneFilter.stopPass(!!o);
+  try {
+    const o = match(rxme, doneFilter);
+    if (o !== doneFilter) {
+      doneFilter.stopPass(!!o);
+      // console.log(`Sync-DoneFilter-Complete`, doneFilter.objectId);
+      // doneFilter.complete();
+    }
+  } catch (e) {
+    doneFilter.stopPass(false);
+    const rxexp = Msg.Error(e, ErrorSource.EXCEPTION);
+    searchMatcher(mymm, 0, rxexp, false);
+    // mymm.obss.forEach(obs => obs.next(rxexp));
+    // console.log(`WTF:${doneFilter.objectId}:${e}`);
   }
 }
 
