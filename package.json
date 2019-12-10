@@ -22,7 +22,7 @@
   },
   "hmmepage": "https://github.com/mabels/rxme#readme",
   "devDependencies": {
-    "@types/chai": "^4.1.0",
+    "@types/chai": "^4.2.7",
     "@types/mocha": "^2.2.46",
     "chai": ">=3.5.0",
     "cz-conventional-changelog": "^2.1.0",
